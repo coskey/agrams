@@ -389,12 +389,17 @@ button {
 .player-words {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 10px 16px;
 }
+/* Column layout: the word's width (and therefore its wrap position next to the
+   previous word) depends only on the tiles. The challenge link sits below the
+   tiles instead of widening the word and pushing it onto the next line. */
 .word {
   display: inline-flex;
-  gap: 4px;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 .word-run {
   display: inline-flex;
@@ -435,13 +440,14 @@ button {
   }
 }
 .word .challenge-link {
-  margin-left: 6px;
+  margin: 0;
   font-size: 12px;
   color: var(--muted);
   background: none;
   border: none;
   text-decoration: underline;
-  padding: 2px 4px;
+  padding: 0 2px;
+  align-self: flex-start;
   animation: challenge-fade 5s linear forwards;
 }
 @keyframes challenge-fade {
