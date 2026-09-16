@@ -3,6 +3,7 @@
 // new GameState and appends to the event log; nothing mutates the input state.
 
 import type { Dictionary } from "./dictionary";
+import type { Morphology } from "./morphology";
 import {
   lettersToCounts,
   countsContain,
@@ -11,6 +12,12 @@ import {
 } from "./letters";
 import { checkStealStructure } from "./steal";
 import { buildBag, makeRng } from "./bag";
+
+/** The bundled rules a game plays by: word validity plus root detection. */
+export interface Rules {
+  dictionary: Dictionary;
+  morphology: Morphology;
+}
 import type {
   GameState,
   GameSettings,
@@ -23,6 +30,8 @@ import type {
 } from "./types";
 
 export const DEFAULT_SETTINGS: GameSettings = {
+  mode: "vs-computer",
+  difficultyLevel: 3,
   minWordLength: 4,
   flipMode: "manual",
   autoFlipIntervalMs: 6000,
@@ -272,15 +281,15 @@ function applySteal(
  *  Assumes the move has been validated via analyzeWord. */
 export function applyMove(
   state: GameState,
-  dictionary: Dictionary,
+  rules: Rules,
   move: Move,
 ): AttemptResult {
   if (move.kind === "claim") {
-    return attemptWord(state, dictionary, move.playerId, move.text, {
+    return attemptWord(state, rules, move.playerId, move.text, {
       preferSourceWordId: undefined,
     });
   }
-  return attemptWord(state, dictionary, move.playerId, move.text, {
+  return attemptWord(state, rules, move.playerId, move.text, {
     preferSourceWordId: move.sourceWordId,
   });
 }
@@ -293,8 +302,7 @@ export interface AnalyzeResult {
   canClaim: boolean;
   /** Source word ids this word could legally steal (strict rule + pool letters).*/
   steals: number[];
-  /** A word uses all of an existing word's letters but only extends it (no
-   *  rearrangement) — blocked by the strict rule. */
+  /** A structurally-valid steal was blocked because the words share a root. */
   blockedSameRoot: boolean;
   /** A structurally-legal steal exists, but the extra letters aren't in the pool.*/
   blockedNeedLetters: boolean;
@@ -304,12 +312,13 @@ export interface AnalyzeResult {
  *  the attempt logic. */
 export function analyzeWord(
   state: GameState,
-  dictionary: Dictionary,
+  rules: Rules,
   text: string,
 ): AnalyzeResult {
   const normalized = normalizeWord(text);
   const tooShort = normalized.length < state.settings.minWordLength;
-  const dictionaryValid = normalized.length > 0 && dictionary.isValid(normalized);
+  const dictionaryValid =
+    normalized.length > 0 && rules.dictionary.isValid(normalized);
 
   const wordCounts = lettersToCounts(normalized);
   const poolCounts = poolLetterCounts(state.pool);
@@ -322,13 +331,14 @@ export function analyzeWord(
   if (normalized.length > 0) {
     for (const w of state.words) {
       const structure = checkStealStructure(w.text, normalized);
-      if (structure.legal) {
-        const extra = subtractCounts(wordCounts, lettersToCounts(w.text));
-        if (countsContain(poolCounts, extra)) steals.push(w.id);
-        else blockedNeedLetters = true;
-      } else if (structure.reason === "SAME_ROOT") {
+      if (!structure.legal) continue;
+      if (rules.morphology.sameRoot(w.text, normalized)) {
         blockedSameRoot = true;
+        continue;
       }
+      const extra = subtractCounts(wordCounts, lettersToCounts(w.text));
+      if (countsContain(poolCounts, extra)) steals.push(w.id);
+      else blockedNeedLetters = true;
     }
   }
   return {
@@ -358,7 +368,7 @@ function poolLetterCounts(pool: Tile[]): number[] {
  */
 export function attemptWord(
   state: GameState,
-  dictionary: Dictionary,
+  rules: Rules,
   playerId: string,
   text: string,
   opts?: { preferSourceWordId?: number },
@@ -366,7 +376,7 @@ export function attemptWord(
   if (state.phase !== "playing") {
     return { ok: false, reason: "GAME_OVER", message: "The game is over." };
   }
-  const analysis = analyzeWord(state, dictionary, text);
+  const analysis = analyzeWord(state, rules, text);
   const { normalized } = analysis;
 
   if (analysis.tooShort) {
@@ -424,7 +434,7 @@ export function attemptWord(
       ok: false,
       reason: "NOT_A_STEAL",
       message:
-        "That just adds letters to an existing word. A steal has to rearrange it.",
+        "That word shares a root with the one you're stealing. Try a different word.",
     };
   }
   if (analysis.blockedNeedLetters) {
@@ -445,11 +455,11 @@ export function attemptWord(
  *  re-validate a planned move before it commits. */
 export function moveIsLegal(
   state: GameState,
-  dictionary: Dictionary,
+  rules: Rules,
   move: Move,
 ): boolean {
   if (state.phase !== "playing") return false;
-  const analysis = analyzeWord(state, dictionary, move.text);
+  const analysis = analyzeWord(state, rules, move.text);
   if (analysis.tooShort || !analysis.dictionaryValid) return false;
   if (move.kind === "claim") return analysis.canClaim;
   return analysis.steals.includes(move.sourceWordId);

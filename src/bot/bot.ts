@@ -7,13 +7,13 @@ import type {
   Move,
   ClaimedWord,
 } from "../engine/types";
-import type { Dictionary, VocabEntry } from "../engine/dictionary";
+import type { VocabEntry } from "../engine/dictionary";
 import {
   lettersToCounts,
   countsContain,
   subtractCounts,
 } from "../engine/letters";
-import { wordScore } from "../engine/game";
+import { wordScore, type Rules } from "../engine/game";
 
 export interface BotConfig {
   /** New words longer than this are ignored (keeps the bot human-beatable). */
@@ -25,11 +25,30 @@ export interface BotConfig {
   rng: () => number;
 }
 
-export const MEDIUM_BOT: Omit<BotConfig, "rng"> = {
-  maxWordLength: 8,
-  missProbability: 0.4,
-  topK: 3,
+/** A difficulty level (1 easiest .. 5 hardest). Reaction bounds are consumed by
+ *  the UI timing layer; the rest tune move quality and frequency. */
+export interface BotLevel {
+  maxWordLength: number;
+  missProbability: number;
+  topK: number;
+  reactionLoMs: number;
+  reactionHiMs: number;
+}
+
+export const BOT_LEVELS: Record<number, BotLevel> = {
+  1: { maxWordLength: 5, missProbability: 0.7, topK: 6, reactionLoMs: 9000, reactionHiMs: 13000 },
+  2: { maxWordLength: 6, missProbability: 0.55, topK: 5, reactionLoMs: 7000, reactionHiMs: 10000 },
+  3: { maxWordLength: 8, missProbability: 0.4, topK: 3, reactionLoMs: 5000, reactionHiMs: 8000 },
+  4: { maxWordLength: 10, missProbability: 0.2, topK: 2, reactionLoMs: 3500, reactionHiMs: 6000 },
+  5: { maxWordLength: 99, missProbability: 0.0, topK: 1, reactionLoMs: 2000, reactionHiMs: 4000 },
 };
+
+export const DEFAULT_BOT_LEVEL = 3;
+
+export function botLevel(level: number): BotLevel {
+  const clamped = Math.min(5, Math.max(1, Math.round(level)));
+  return BOT_LEVELS[clamped] ?? BOT_LEVELS[DEFAULT_BOT_LEVEL];
+}
 
 interface Candidate {
   move: Move;
@@ -49,6 +68,7 @@ function poolCounts(state: GameState): number[] {
  *  for testing and reuse; the bot itself layers difficulty on top. */
 export function findBotCandidates(
   state: GameState,
+  rules: Rules,
   vocab: VocabEntry[],
   botId: string,
   maxWordLength: number,
@@ -84,7 +104,7 @@ export function findBotCandidates(
       if (len <= w.text.length) continue;
       const wc = countsFor(w);
       if (!countsContain(entry.counts, wc)) continue; // must use all of source
-      if (entry.word.includes(w.text)) continue; // strict rule: real rearrangement
+      if (rules.morphology.sameRoot(w.text, entry.word)) continue; // different root
       const extra = subtractCounts(entry.counts, wc);
       if (!countsContain(pc, extra)) continue; // extras must be in the pool
       const gain = wordScore(len);
@@ -104,14 +124,14 @@ export function findBotCandidates(
  */
 export function chooseBotMove(
   state: GameState,
-  _dictionary: Dictionary,
+  rules: Rules,
   vocab: VocabEntry[],
   botId: string,
   config: BotConfig,
 ): Move | null {
   if (state.phase !== "playing") return null;
 
-  const candidates = findBotCandidates(state, vocab, botId, config.maxWordLength);
+  const candidates = findBotCandidates(state, rules, vocab, botId, config.maxWordLength);
   if (candidates.length === 0) return null;
 
   // Sometimes hold back so the human can grab a word first.

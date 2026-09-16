@@ -3,6 +3,7 @@ import {
   createGame,
   flipNextTile,
   attemptWord,
+  analyzeWord,
   challengeWord,
   tickEndgame,
   endGame,
@@ -11,9 +12,10 @@ import {
   type GameSettings,
   type Player,
   type Move,
+  type Rules,
 } from "../engine";
-import type { Dictionary, VocabEntry } from "../engine/dictionary";
-import { chooseBotMove, MEDIUM_BOT } from "../bot/bot";
+import type { VocabEntry } from "../engine/dictionary";
+import { chooseBotMove, botLevel } from "../bot/bot";
 import { makeRng } from "../engine/bag";
 
 export interface Feedback {
@@ -22,30 +24,36 @@ export interface Feedback {
   kind: "error" | "ok";
 }
 
+/** The word event most recently produced, used to prefill the feedback form. */
+export interface LastWordEvent {
+  original: string;
+  created: string;
+  outcome: "steal" | "claim" | "rejected";
+}
+
 export const YOU_ID = "you";
 export const BOT_ID = "bot";
 
-const LOOP_MS = 250; // how often timers/bot are evaluated
+const LOOP_MS = 250;
 const ENDGAME_TICK_MS = 250;
 const FEEDBACK_MS = 2500;
+export const MOVE_ANIM_MS = 1500;
 
-function defaultPlayers(): Player[] {
-  return [
-    { id: YOU_ID, name: "You", isBot: false },
-    { id: BOT_ID, name: "Bot", isBot: true },
-  ];
+function playersFor(mode: GameSettings["mode"]): Player[] {
+  const you: Player = { id: YOU_ID, name: "You", isBot: false };
+  if (mode === "practice") return [you];
+  return [you, { id: BOT_ID, name: "Bot", isBot: true }];
 }
 
-/**
- * How long the bot waits before committing a found move. Medium difficulty gives
- * a human-usable buffer: 5-8s in auto-flip mode, 8-10s in manual mode, scaled by
- * how many letters the move adds.
- */
+/** How long the bot waits before committing a found move: bounds come from the
+ *  difficulty level, scaled by how many letters the move adds, plus extra time
+ *  in manual-flip mode where the human is pacing the game. */
 function botReactionDelayMs(
   state: GameState,
   move: Move,
   rng: () => number,
 ): number {
+  const level = botLevel(state.settings.difficultyLevel);
   const source =
     move.kind === "steal"
       ? state.words.find((w) => w.id === move.sourceWordId)
@@ -54,9 +62,9 @@ function botReactionDelayMs(
     move.kind === "claim"
       ? move.text.length
       : move.text.length - (source?.text.length ?? 0);
-  const manual = state.settings.flipMode === "manual";
-  const lo = manual ? 8000 : 5000;
-  const hi = manual ? 10000 : 8000;
+  const manualBonus = state.settings.flipMode === "manual" ? 3000 : 0;
+  const lo = level.reactionLoMs + manualBonus;
+  const hi = level.reactionHiMs + manualBonus;
   const norm = Math.min(1, Math.max(0, (added - 1) / 5));
   const base = lo + norm * (hi - lo);
   const jitter = (rng() * 2 - 1) * 500;
@@ -76,7 +84,7 @@ export interface UseGame {
   challengeId: number | null;
   paused: boolean;
   autoFlipRemainingMs: number | null;
-  // actions
+  lastWordEvent: LastWordEvent | null;
   setPending: (text: string) => void;
   tapTile: (tileId: number, letter: string, fromWordId?: number) => void;
   clearPending: () => void;
@@ -92,12 +100,12 @@ export interface UseGame {
 }
 
 export function useGame(
-  dictionary: Dictionary,
+  rules: Rules,
   vocab: VocabEntry[],
   initialSettings: GameSettings,
 ): UseGame {
   const [game, setGame] = useState<GameState>(() =>
-    createGame({ players: defaultPlayers(), settings: initialSettings }),
+    createGame({ players: playersFor(initialSettings.mode), settings: initialSettings }),
   );
   const [feedback, setFeedbackState] = useState<Feedback | null>(null);
   const [pending, setPendingState] = useState("");
@@ -105,9 +113,8 @@ export function useGame(
   const [sourceIds, setSourceIds] = useState<Set<number>>(new Set());
   const [challengeId, setChallengeId] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
-  const [autoFlipRemainingMs, setAutoFlipRemainingMs] = useState<number | null>(
-    null,
-  );
+  const [autoFlipRemainingMs, setAutoFlipRemainingMs] = useState<number | null>(null);
+  const [lastWordEvent, setLastWordEvent] = useState<LastWordEvent | null>(null);
 
   const gameRef = useRef(game);
   gameRef.current = game;
@@ -117,6 +124,7 @@ export function useGame(
   const botRng = useRef(makeRng(Math.floor(Math.random() * 2 ** 31)));
   const pendingBot = useRef<PendingBotMove | null>(null);
   const nextFlipAt = useRef(0);
+  const animatingUntil = useRef(0);
   const feedbackId = useRef(0);
 
   const setFeedback = useCallback((f: Omit<Feedback, "id"> | null) => {
@@ -128,7 +136,6 @@ export function useGame(
     setFeedbackState({ ...f, id: feedbackId.current });
   }, []);
 
-  // Fade feedback away after a short while.
   useEffect(() => {
     if (!feedback) return;
     const id = feedback.id;
@@ -173,45 +180,58 @@ export function useGame(
   const submit = useCallback(() => {
     const text = pending.trim();
     if (text.length === 0) return;
-    const preferSourceWordId =
-      sourceIds.size === 1 ? [...sourceIds][0] : undefined;
-    const result = attemptWord(gameRef.current, dictionary, YOU_ID, text, {
-      preferSourceWordId,
-    });
+    const g = gameRef.current;
+    const preferSourceWordId = sourceIds.size === 1 ? [...sourceIds][0] : undefined;
+    const result = attemptWord(g, rules, YOU_ID, text, { preferSourceWordId });
     if (result.ok) {
       setGame(result.state);
-      const verb = result.move.kind === "steal" ? "Stole" : "Claimed";
-      setFeedback({ text: `${verb} ${result.move.text}`, kind: "ok" });
+      animatingUntil.current = Date.now() + MOVE_ANIM_MS;
+      const m = result.move;
+      if (m.kind === "steal") {
+        const src = g.words.find((w) => w.id === m.sourceWordId);
+        setLastWordEvent({ original: src?.text ?? "", created: m.text, outcome: "steal" });
+        setFeedback({ text: `Stole ${m.text}`, kind: "ok" });
+      } else {
+        setLastWordEvent({ original: "", created: m.text, outcome: "claim" });
+        setFeedback({ text: `Claimed ${m.text}`, kind: "ok" });
+      }
       clearPending();
     } else {
+      // Prefill feedback with a same-root source, if the rejection was one.
+      const analysis = analyzeWord(g, rules, text);
+      let original = "";
+      for (const w of g.words) {
+        if (rules.morphology.sameRoot(w.text, analysis.normalized)) {
+          original = w.text;
+          break;
+        }
+      }
+      setLastWordEvent({ original, created: analysis.normalized, outcome: "rejected" });
       setFeedback({ text: result.message, kind: "error" });
     }
-  }, [pending, sourceIds, dictionary, clearPending, setFeedback]);
+  }, [pending, sourceIds, rules, clearPending, setFeedback]);
 
   const flip = useCallback(() => {
     if (pausedRef.current) return;
-    setGame((g) => flipNextTile(g));
+    setGame((gm) => flipNextTile(gm));
   }, []);
 
-  const startChallenge = useCallback((wordId: number) => {
-    setChallengeId(wordId);
-  }, []);
+  const startChallenge = useCallback((wordId: number) => setChallengeId(wordId), []);
   const cancelChallenge = useCallback(() => setChallengeId(null), []);
   const resolveChallenge = useCallback((upheld: boolean) => {
     setChallengeId((id) => {
-      if (id !== null) setGame((g) => challengeWord(g, id, upheld));
+      if (id !== null) setGame((gm) => challengeWord(gm, id, upheld));
       return null;
     });
   }, []);
 
   const endNow = useCallback(() => {
     setPaused(false);
-    setGame((g) => endGame(g));
+    setGame((gm) => endGame(gm));
   }, []);
 
   const pause = useCallback(() => setPaused(true), []);
   const resume = useCallback(() => {
-    // Avoid a burst of catch-up actions after resuming.
     pendingBot.current = null;
     nextFlipAt.current = Date.now() + gameRef.current.settings.autoFlipIntervalMs;
     setPaused(false);
@@ -219,20 +239,22 @@ export function useGame(
 
   const newGame = useCallback(
     (settings: GameSettings) => {
-      setGame(createGame({ players: defaultPlayers(), settings }));
+      setGame(createGame({ players: playersFor(settings.mode), settings }));
       setFeedback(null);
       clearPending();
       setChallengeId(null);
       setPaused(false);
+      setLastWordEvent(null);
       pendingBot.current = null;
       nextFlipAt.current = 0;
+      animatingUntil.current = 0;
       setAutoFlipRemainingMs(null);
       botRng.current = makeRng(Math.floor(Math.random() * 2 ** 31));
     },
     [clearPending, setFeedback],
   );
 
-  // Bot loop: plan a move, wait a human-usable delay, then commit it.
+  // Bot loop (skipped entirely in practice mode).
   useEffect(() => {
     const timer = setInterval(() => {
       const g = gameRef.current;
@@ -240,42 +262,41 @@ export function useGame(
         pendingBot.current = null;
         return;
       }
+      if (!g.players.some((p) => p.isBot)) return;
+      const level = botLevel(g.settings.difficultyLevel);
       let plan = pendingBot.current;
-      if (plan && !moveIsLegal(g, dictionary, plan.move)) plan = null;
+      if (plan && !moveIsLegal(g, rules, plan.move)) plan = null;
       if (!plan) {
-        const move = chooseBotMove(g, dictionary, vocab, BOT_ID, {
-          ...MEDIUM_BOT,
+        const move = chooseBotMove(g, rules, vocab, BOT_ID, {
+          maxWordLength: level.maxWordLength,
+          missProbability: level.missProbability,
+          topK: level.topK,
           rng: botRng.current,
         });
-        if (move) {
-          plan = { move, at: Date.now() + botReactionDelayMs(g, move, botRng.current) };
-        }
+        if (move) plan = { move, at: Date.now() + botReactionDelayMs(g, move, botRng.current) };
       }
       if (plan && Date.now() >= plan.at) {
         const move = plan.move;
         const result =
           move.kind === "claim"
-            ? attemptWord(g, dictionary, BOT_ID, move.text)
-            : attemptWord(g, dictionary, BOT_ID, move.text, {
-                preferSourceWordId: move.sourceWordId,
-              });
-        if (result.ok) setGame(result.state);
+            ? attemptWord(g, rules, BOT_ID, move.text)
+            : attemptWord(g, rules, BOT_ID, move.text, { preferSourceWordId: move.sourceWordId });
+        if (result.ok) {
+          setGame(result.state);
+          animatingUntil.current = Date.now() + MOVE_ANIM_MS;
+        }
         plan = null;
       }
       pendingBot.current = plan;
     }, LOOP_MS);
     return () => clearInterval(timer);
-  }, [dictionary, vocab]);
+  }, [rules, vocab]);
 
-  // Auto-flip loop with a visible countdown to the next tile.
+  // Auto-flip loop with a visible countdown; paused during move animations.
   useEffect(() => {
     const timer = setInterval(() => {
       const g = gameRef.current;
-      if (
-        pausedRef.current ||
-        g.phase !== "playing" ||
-        g.settings.flipMode !== "auto"
-      ) {
+      if (pausedRef.current || g.phase !== "playing" || g.settings.flipMode !== "auto") {
         setAutoFlipRemainingMs(null);
         return;
       }
@@ -284,9 +305,13 @@ export function useGame(
         return;
       }
       const now = Date.now();
-      if (nextFlipAt.current === 0) {
-        nextFlipAt.current = now + g.settings.autoFlipIntervalMs;
+      if (now < animatingUntil.current) {
+        // Hold the draw while tiles are animating into a word.
+        nextFlipAt.current = animatingUntil.current + g.settings.autoFlipIntervalMs;
+        setAutoFlipRemainingMs(nextFlipAt.current - now);
+        return;
       }
+      if (nextFlipAt.current === 0) nextFlipAt.current = now + g.settings.autoFlipIntervalMs;
       const remaining = nextFlipAt.current - now;
       if (remaining <= 0) {
         setGame((cur) => flipNextTile(cur));
@@ -318,6 +343,7 @@ export function useGame(
     challengeId,
     paused,
     autoFlipRemainingMs,
+    lastWordEvent,
     setPending,
     tapTile,
     clearPending,

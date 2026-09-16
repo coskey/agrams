@@ -4,16 +4,18 @@ import {
   allScores,
   type GameSettings,
   type ClaimedWord,
+  type Rules,
 } from "../../engine";
-import type { Dictionary, VocabEntry } from "../../engine/dictionary";
-import { useGame, YOU_ID, BOT_ID } from "../useGame";
+import type { VocabEntry } from "../../engine/dictionary";
+import { useGame, YOU_ID, BOT_ID, MOVE_ANIM_MS } from "../useGame";
 import { TopBar } from "../components/TopBar";
 import { Tile } from "../components/Tile";
 import { SettingsModal } from "../components/SettingsModal";
 import { ChallengeModal } from "../components/ChallengeModal";
+import { WordFeedback } from "../components/WordFeedback";
 
 interface Props {
-  dictionary: Dictionary;
+  rules: Rules;
   vocab: VocabEntry[];
   settings: GameSettings;
   onExit: () => void;
@@ -26,20 +28,13 @@ const DOT_COLORS: Record<string, string> = {
   [BOT_ID]: "#c0392b",
 };
 
-// A word can be challenged only briefly after it appears.
 const CHALLENGE_WINDOW_MS = 5000;
 
-export function Game({
-  dictionary,
-  vocab,
-  settings,
-  onExit,
-  themeMode,
-  onToggleTheme,
-}: Props) {
-  const g = useGame(dictionary, vocab, settings);
+export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme }: Props) {
+  const g = useGame(rules, vocab, settings);
   const { game } = g;
   const [showSettings, setShowSettings] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const scores = useMemo(() => allScores(game), [game]);
@@ -48,20 +43,15 @@ export function Game({
       ? Math.ceil(game.endgame.remainingMs / 1000)
       : null;
   const nextTileSec =
-    g.autoFlipRemainingMs !== null
-      ? Math.ceil(g.autoFlipRemainingMs / 1000)
-      : null;
+    g.autoFlipRemainingMs !== null ? Math.ceil(g.autoFlipRemainingMs / 1000) : null;
 
   const challengeWordObj: ClaimedWord | null =
-    g.challengeId !== null
-      ? game.words.find((w) => w.id === g.challengeId) ?? null
-      : null;
+    g.challengeId !== null ? game.words.find((w) => w.id === g.challengeId) ?? null : null;
 
   const isSelected = (id: number) => g.selectedTileIds.has(id);
   const ended = game.phase === "ended";
   const isAuto = game.settings.flipMode === "auto";
 
-  // A ticking clock and per-word first-seen times drive the challenge window.
   const [clock, setClock] = useState(() => Date.now());
   const seenRef = useRef<Map<number, number>>(new Map());
   useEffect(() => {
@@ -71,21 +61,30 @@ export function Game({
     }
   }, [game.words]);
   useEffect(() => {
-    const t = setInterval(() => setClock(Date.now()), 500);
+    const t = setInterval(() => setClock(Date.now()), 250);
     return () => clearInterval(t);
   }, []);
-  const challengeable = (wordId: number) =>
-    !ended &&
-    clock - (seenRef.current.get(wordId) ?? clock) < CHALLENGE_WINDOW_MS;
+  const ageOf = (wordId: number) => clock - (seenRef.current.get(wordId) ?? clock);
+  const challengeable = (wordId: number) => !ended && ageOf(wordId) < CHALLENGE_WINDOW_MS;
+  const animating = (wordId: number) => ageOf(wordId) < MOVE_ANIM_MS;
 
   useEffect(() => {
     if (window.matchMedia("(min-width: 900px)").matches) inputRef.current?.focus();
   }, []);
 
+  const openFeedback = () => {
+    g.pause();
+    setShowFeedback(true);
+  };
+  const closeFeedback = () => {
+    setShowFeedback(false);
+    g.resume();
+  };
+
   return (
     <div className="app">
       <TopBar themeMode={themeMode} onToggleTheme={onToggleTheme}>
-        <span className="chip">vs. Computer</span>
+        <span className="chip">{game.settings.mode === "practice" ? "Practice" : `Bot · L${game.settings.difficultyLevel}`}</span>
         {remainingSec !== null && (
           <span className="chip" aria-live="polite">
             ⏳ <span className="countdown">{remainingSec}s</span>
@@ -153,10 +152,7 @@ export function Game({
               return (
                 <div className="player-row" key={p.id}>
                   <div className="player-head">
-                    <span
-                      className="player-dot"
-                      style={{ background: DOT_COLORS[p.id] ?? "var(--muted)" }}
-                    />
+                    <span className="player-dot" style={{ background: DOT_COLORS[p.id] ?? "var(--muted)" }} />
                     <span className="player-name">
                       {p.name}
                       {p.id === YOU_ID && <span className="you">(you)</span>}
@@ -168,23 +164,21 @@ export function Game({
                   ) : (
                     <div className="player-words">
                       {words.map((w) => (
-                        <div className="word" key={w.id}>
+                        <div className={`word ${animating(w.id) ? "animating" : ""}`} key={w.id}>
                           <span className="word-run">
-                            {w.tiles.map((t) => (
-                              <Tile
-                                key={t.id}
-                                letter={t.letter}
-                                small
-                                used={isSelected(t.id)}
-                                onTap={() => g.tapTile(t.id, t.letter, w.id)}
-                              />
+                            {w.tiles.map((t, i) => (
+                              <span key={t.id} className="tile-slot" style={{ animationDelay: `${i * 60}ms` }}>
+                                <Tile
+                                  letter={t.letter}
+                                  small
+                                  used={isSelected(t.id)}
+                                  onTap={() => g.tapTile(t.id, t.letter, w.id)}
+                                />
+                              </span>
                             ))}
                           </span>
                           {challengeable(w.id) && (
-                            <button
-                              className="challenge-link"
-                              onClick={() => g.startChallenge(w.id)}
-                            >
+                            <button className="challenge-link" onClick={() => g.startChallenge(w.id)}>
                               challenge
                             </button>
                           )}
@@ -202,11 +196,7 @@ export function Game({
           <div className="inputbar">
             <div className="row">
               {game.settings.flipMode === "manual" && (
-                <button
-                  className="btn secondary flip-btn"
-                  onClick={g.flip}
-                  disabled={game.bag.length === 0}
-                >
+                <button className="btn secondary flip-btn" onClick={g.flip} disabled={game.bag.length === 0}>
                   Flip{game.bag.length > 0 ? ` (${game.bag.length})` : ""}
                 </button>
               )}
@@ -228,15 +218,17 @@ export function Game({
                 Enter
               </button>
             </div>
-            <div className="feedback-line">
-              {g.feedback && (
-                <span
-                  key={g.feedback.id}
-                  className={`feedback-msg ${g.feedback.kind}`}
-                >
-                  {g.feedback.text}
-                </span>
-              )}
+            <div className="under-input">
+              <div className={`feedback-line ${g.feedback?.kind ?? ""}`}>
+                {g.feedback && (
+                  <span key={g.feedback.id} className={`feedback-msg ${g.feedback.kind}`}>
+                    {g.feedback.text}
+                  </span>
+                )}
+              </div>
+              <button className="link-btn" onClick={openFeedback}>
+                Word feedback
+              </button>
             </div>
           </div>
         )}
@@ -245,17 +237,18 @@ export function Game({
       {challengeWordObj && (
         <ChallengeModal
           word={challengeWordObj.text}
-          ownerName={
-            game.players.find((p) => p.id === challengeWordObj.ownerId)?.name ??
-            "Player"
-          }
-          inDictionary={dictionary.isValid(challengeWordObj.text)}
+          ownerName={game.players.find((p) => p.id === challengeWordObj.ownerId)?.name ?? "Player"}
+          inDictionary={rules.dictionary.isValid(challengeWordObj.text)}
           onResolve={g.resolveChallenge}
           onCancel={g.cancelChallenge}
         />
       )}
 
-      {g.paused && (
+      {showFeedback && (
+        <WordFeedback last={g.lastWordEvent} onClose={closeFeedback} />
+      )}
+
+      {g.paused && !showFeedback && (
         <div className="overlay" role="dialog" aria-modal="true" aria-label="Paused">
           <div className="modal pause-modal">
             <h2>Game paused</h2>

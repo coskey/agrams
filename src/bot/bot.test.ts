@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { createGame, flipNextTile, attemptWord } from "../engine/game";
+import { createGame, flipNextTile, attemptWord, type Rules } from "../engine/game";
 import { Dictionary, buildVocabulary } from "../engine/dictionary";
+import { emptyMorphology } from "../engine/morphology";
 import { makeRng } from "../engine/bag";
-import { findBotCandidates, chooseBotMove } from "./bot";
+import { findBotCandidates, chooseBotMove, botLevel } from "./bot";
 import type { Player, Tile } from "../engine/types";
 
 const DICT = new Dictionary(["CARE", "RACER", "RACE", "ACRE", "CATER", "TRACE"]);
+const RULES: Rules = { dictionary: DICT, morphology: emptyMorphology(DICT) };
 const VOCAB = buildVocabulary(["CARE", "RACER", "RACE", "CATER", "TRACE"], DICT);
 
 const PLAYERS: Player[] = [
@@ -14,7 +16,6 @@ const PLAYERS: Player[] = [
 ];
 
 function poolGame(letters: string) {
-  // Build a bag whose flip order (pop from end) reveals `letters` left-to-right.
   const bag: Tile[] = letters
     .split("")
     .map((letter, i) => ({ id: i, letter }))
@@ -24,51 +25,54 @@ function poolGame(letters: string) {
   return s;
 }
 
+const level3 = botLevel(3);
+
 describe("bot", () => {
   it("finds a claim it can make from the pool", () => {
     const s = poolGame("CARE");
-    const candidates = findBotCandidates(s, VOCAB, "bot", 8);
+    const candidates = findBotCandidates(s, RULES, VOCAB, "bot", 8);
     expect(candidates.some((c) => c.move.kind === "claim" && c.move.text === "CARE")).toBe(true);
   });
 
   it("finds a legal steal of an existing word", () => {
-    let s = poolGame("CARER"); // pool: C A R E R
-    const claim = attemptWord(s, DICT, "you", "CARE");
+    let s = poolGame("CARER");
+    const claim = attemptWord(s, RULES, "you", "CARE");
     if (!claim.ok) throw new Error("setup claim failed");
-    s = claim.state; // pool: R
-    const candidates = findBotCandidates(s, VOCAB, "bot", 8);
-    const steal = candidates.find(
-      (c) => c.move.kind === "steal" && c.move.text === "RACER",
-    );
-    expect(steal).toBeDefined();
+    s = claim.state;
+    const candidates = findBotCandidates(s, RULES, VOCAB, "bot", 8);
+    expect(candidates.some((c) => c.move.kind === "steal" && c.move.text === "RACER")).toBe(true);
   });
 
-  it("respects the max word length setting", () => {
+  it("respects the max word length", () => {
     const s = poolGame("CARE");
-    const candidates = findBotCandidates(s, VOCAB, "bot", 3);
-    expect(candidates).toHaveLength(0);
+    expect(findBotCandidates(s, RULES, VOCAB, "bot", 3)).toHaveLength(0);
   });
 
   it("chooses a move deterministically with a seeded rng", () => {
     const s = poolGame("CARE");
-    const move = chooseBotMove(s, DICT, VOCAB, "bot", {
-      maxWordLength: 8,
-      missProbability: 0, // never skip
+    const move = chooseBotMove(s, RULES, VOCAB, "bot", {
+      maxWordLength: level3.maxWordLength,
+      missProbability: 0,
       topK: 3,
       rng: makeRng(42),
     });
-    expect(move).not.toBeNull();
     expect(move?.playerId).toBe("bot");
   });
 
   it("can be made to hold back", () => {
     const s = poolGame("CARE");
-    const move = chooseBotMove(s, DICT, VOCAB, "bot", {
+    const move = chooseBotMove(s, RULES, VOCAB, "bot", {
       maxWordLength: 8,
-      missProbability: 1, // always skip
+      missProbability: 1,
       topK: 3,
       rng: makeRng(42),
     });
     expect(move).toBeNull();
+  });
+
+  it("has five difficulty levels, hardest strongest", () => {
+    expect(botLevel(1).missProbability).toBeGreaterThan(botLevel(5).missProbability);
+    expect(botLevel(5).maxWordLength).toBeGreaterThan(botLevel(1).maxWordLength);
+    expect(botLevel(3)).toEqual(botLevel(3));
   });
 });

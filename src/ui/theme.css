@@ -401,6 +401,39 @@ button {
   gap: 4px;
   flex-wrap: wrap;
 }
+.tile-slot {
+  display: inline-flex;
+}
+/* Tiles assemble into a freshly made word, staggered per tile (~1.5s total). */
+.word.animating .tile-slot {
+  animation: tile-assemble 0.6s ease both;
+}
+@keyframes tile-assemble {
+  0% {
+    transform: translateY(-16px) scale(0.55) rotate(-8deg);
+    opacity: 0;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+.word.animating {
+  animation: word-glow 1.5s ease;
+  border-radius: 8px;
+}
+@keyframes word-glow {
+  0%,
+  100% {
+    background: transparent;
+  }
+  30% {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+}
 .word .challenge-link {
   margin-left: 6px;
   font-size: 12px;
@@ -469,11 +502,43 @@ button {
   padding: 12px 14px;
   white-space: nowrap;
 }
-.feedback-line {
+.under-input {
   max-width: 1100px;
   margin: 6px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.feedback-line {
+  flex: 1;
   font-size: 13px;
   min-height: 18px;
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  padding: 4px 2px;
+  white-space: nowrap;
+}
+.link-btn:hover {
+  color: var(--fg);
+}
+.text-input {
+  width: 100%;
+  font-size: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--fg);
+}
+.text-input:focus {
+  outline: 2px solid var(--accent);
+  border-color: var(--accent);
 }
 .feedback-msg {
   animation: feedback-fade 2.5s ease forwards;

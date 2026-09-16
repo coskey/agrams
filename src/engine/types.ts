@@ -26,7 +26,13 @@ export interface Player {
 
 export type FlipMode = "manual" | "auto";
 
+export type GameMode = "vs-computer" | "practice";
+
 export interface GameSettings {
+  /** Whether there is a computer opponent, or a solo practice game. */
+  mode: GameMode;
+  /** Computer difficulty, 1 (easiest) to 5 (hardest). Default 3. */
+  difficultyLevel: number;
   /** Minimum word length, adjustable 2-6. Default 4. */
   minWordLength: number;
   /** How tiles are revealed. */

@@ -2,6 +2,7 @@ import { TopBar } from "../components/TopBar";
 
 interface Props {
   onPlay: () => void;
+  onPractice: () => void;
   onHowToPlay: () => void;
   themeMode: string;
   onToggleTheme: () => void;
@@ -10,7 +11,7 @@ interface Props {
 // Simple decorative 3x3 logo grid (filled/empty like a mini crossword).
 const LOGO_FILL = [false, true, false, true, false, true, false, true, false];
 
-export function Home({ onPlay, onHowToPlay, themeMode, onToggleTheme }: Props) {
+export function Home({ onPlay, onPractice, onHowToPlay, themeMode, onToggleTheme }: Props) {
   return (
     <div className="app">
       <TopBar themeMode={themeMode} onToggleTheme={onToggleTheme} />
@@ -28,6 +29,9 @@ export function Home({ onPlay, onHowToPlay, themeMode, onToggleTheme }: Props) {
         <div className="home-actions">
           <button className="btn" onClick={onPlay}>
             Play vs. Computer
+          </button>
+          <button className="btn secondary" onClick={onPractice}>
+            Practice (solo)
           </button>
           <button className="btn secondary" onClick={onHowToPlay}>
             How to play

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { loadGameData, type GameData } from "../data/load";
-import { DEFAULT_SETTINGS, type GameSettings } from "../engine";
+import { DEFAULT_SETTINGS, type GameSettings, type GameMode } from "../engine";
 import { useTheme } from "./useTheme";
 import { Home } from "./screens/Home";
 import { Game } from "./screens/Game";
@@ -23,19 +23,15 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"home" | "game">("home");
   const [settings, setSettings] = useState<GameSettings>(DEFAULT_SETTINGS);
-  const [showStart, setShowStart] = useState(false);
+  const [startMode, setStartMode] = useState<GameMode | null>(null);
   const [showTutorial, setShowTutorial] = useState<boolean>(firstVisit);
   const [startNonce, setStartNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     loadGameData()
-      .then((d) => {
-        if (!cancelled) setData(d);
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      });
+      .then((d) => !cancelled && setData(d))
+      .catch((e: unknown) => !cancelled && setError(e instanceof Error ? e.message : String(e)));
     return () => {
       cancelled = true;
     };
@@ -71,13 +67,14 @@ export function App() {
         <Home
           themeMode={theme.mode}
           onToggleTheme={theme.toggle}
-          onPlay={() => setShowStart(true)}
+          onPlay={() => setStartMode("vs-computer")}
+          onPractice={() => setStartMode("practice")}
           onHowToPlay={() => setShowTutorial(true)}
         />
       ) : (
         <Game
           key={startNonce}
-          dictionary={data.dictionary}
+          rules={data.rules}
           vocab={data.vocab}
           settings={settings}
           themeMode={theme.mode}
@@ -86,16 +83,18 @@ export function App() {
         />
       )}
 
-      {showStart && (
+      {startMode && (
         <SettingsModal
-          initial={settings}
+          initial={{ ...settings, mode: startMode }}
+          title={startMode === "practice" ? "Practice game" : "New game"}
+          confirmLabel="Start game"
           onConfirm={(s) => {
             setSettings(s);
-            setShowStart(false);
+            setStartMode(null);
             setStartNonce((n) => n + 1);
             setView("game");
           }}
-          onCancel={() => setShowStart(false)}
+          onCancel={() => setStartMode(null)}
         />
       )}
 

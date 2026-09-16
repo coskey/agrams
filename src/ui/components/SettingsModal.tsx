@@ -30,6 +30,12 @@ export function SettingsModal({
       ),
     }));
 
+  const setDifficulty = (delta: number) =>
+    setS((cur) => ({
+      ...cur,
+      difficultyLevel: Math.min(5, Math.max(1, cur.difficultyLevel + delta)),
+    }));
+
   const setEndgame = (delta: number) =>
     setS((cur) => ({
       ...cur,
@@ -49,6 +55,45 @@ export function SettingsModal({
     <div className="overlay" role="dialog" aria-modal="true" aria-label={title}>
       <div className="modal">
         <h2>{title}</h2>
+
+        <div className="field">
+          <label>Opponent</label>
+          <div className="seg" role="group" aria-label="Opponent">
+            <button
+              type="button"
+              className={s.mode === "vs-computer" ? "active" : ""}
+              onClick={() => setS((c) => ({ ...c, mode: "vs-computer" }))}
+            >
+              Computer
+            </button>
+            <button
+              type="button"
+              className={s.mode === "practice" ? "active" : ""}
+              onClick={() => setS((c) => ({ ...c, mode: "practice" }))}
+            >
+              Practice (solo)
+            </button>
+          </div>
+        </div>
+
+        {s.mode === "vs-computer" && (
+          <div className="field">
+            <label>Difficulty</label>
+            <div className="stepper">
+              <button type="button" onClick={() => setDifficulty(-1)} aria-label="Decrease difficulty">
+                −
+              </button>
+              <span className="val">{s.difficultyLevel}</span>
+              <button type="button" onClick={() => setDifficulty(1)} aria-label="Increase difficulty">
+                +
+              </button>
+            </div>
+            <span className="hint">
+              1 = easiest, 5 = hardest.{" "}
+              {["", "Very easy", "Easy", "Medium", "Hard", "Very hard"][s.difficultyLevel]}
+            </span>
+          </div>
+        )}
 
         <div className="field">
           <label>Minimum word length</label>
