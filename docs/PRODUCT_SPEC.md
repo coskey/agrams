@@ -75,7 +75,9 @@ stack.
 
 - Minimum word length: **4 letters** by default, adjustable in Game Settings to
   any value from **2 to 6** letters.
-- Score per word = **length − 3** (4 letters = 1 point, 5 = 2, 6 = 3, ...).
+- Score per word = **1 point at the minimum length, plus 1 for each extra
+  letter** (= `length − minWordLength + 1`). With the default 4-letter minimum:
+  4 = 1, 5 = 2, 6 = 3; with a 3-letter minimum: 3 = 1, 4 = 2, 6 = 4.
 - When a word is stolen, its points move to the new owner; the old word ceases
   to exist.
 - Final score is the sum of the points of the words a player owns at game end.

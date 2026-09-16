@@ -39,10 +39,11 @@ export const DEFAULT_SETTINGS: GameSettings = {
   stealBonusSeconds: 15,
 };
 
-/** Points for a word of the given length. At least 1 so short words still count
- *  when the minimum length is lowered below 4 in settings. */
-export function wordScore(length: number): number {
-  return Math.max(1, length - 3);
+/** Points for a word: 1 point at the minimum length, plus 1 for each extra
+ *  letter. So with a 3-letter minimum a 3-letter word scores 1 and a 6-letter
+ *  word scores 4; with the default 4-letter minimum, 4 letters = 1, 6 = 3. */
+export function wordScore(length: number, minWordLength: number): number {
+  return Math.max(1, length - minWordLength + 1);
 }
 
 export interface CreateGameOptions {
@@ -94,7 +95,9 @@ export function createGame(options: CreateGameOptions): GameState {
 export function playerScore(state: GameState, playerId: string): number {
   let total = 0;
   for (const w of state.words) {
-    if (w.ownerId === playerId) total += wordScore(w.text.length);
+    if (w.ownerId === playerId) {
+      total += wordScore(w.text.length, state.settings.minWordLength);
+    }
   }
   return total;
 }

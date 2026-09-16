@@ -95,7 +95,7 @@ export function findBotCandidates(
     if (countsContain(pc, entry.counts)) {
       candidates.push({
         move: { kind: "claim", playerId: botId, text: entry.word },
-        value: wordScore(len),
+        value: wordScore(len, minLen),
       });
     }
 
@@ -107,8 +107,9 @@ export function findBotCandidates(
       if (rules.morphology.sameRoot(w.text, entry.word)) continue; // different root
       const extra = subtractCounts(entry.counts, wc);
       if (!countsContain(pc, extra)) continue; // extras must be in the pool
-      const gain = wordScore(len);
-      const denied = w.ownerId === botId ? -wordScore(w.text.length) : wordScore(w.text.length);
+      const gain = wordScore(len, minLen);
+      const sourceScore = wordScore(w.text.length, minLen);
+      const denied = w.ownerId === botId ? -sourceScore : sourceScore;
       candidates.push({
         move: { kind: "steal", playerId: botId, text: entry.word, sourceWordId: w.id },
         value: gain + denied,

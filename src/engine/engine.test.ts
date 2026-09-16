@@ -88,11 +88,15 @@ describe("root detection (Morphology.sameRoot)", () => {
 });
 
 describe("scoring", () => {
-  it("is length minus 3, at least 1", () => {
-    expect(wordScore(4)).toBe(1);
-    expect(wordScore(5)).toBe(2);
-    expect(wordScore(6)).toBe(3);
-    expect(wordScore(2)).toBe(1);
+  it("is 1 at the minimum length, +1 per extra letter", () => {
+    // Default 4-letter minimum.
+    expect(wordScore(4, 4)).toBe(1);
+    expect(wordScore(5, 4)).toBe(2);
+    expect(wordScore(6, 4)).toBe(3);
+    // 3-letter minimum.
+    expect(wordScore(3, 3)).toBe(1);
+    expect(wordScore(4, 3)).toBe(2);
+    expect(wordScore(6, 3)).toBe(4);
   });
 });
 
