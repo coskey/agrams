@@ -1,0 +1,282 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  playerScore,
+  allScores,
+  type GameSettings,
+  type ClaimedWord,
+} from "../../engine";
+import type { Dictionary, VocabEntry } from "../../engine/dictionary";
+import { useGame, YOU_ID, BOT_ID } from "../useGame";
+import { TopBar } from "../components/TopBar";
+import { Tile } from "../components/Tile";
+import { SettingsModal } from "../components/SettingsModal";
+import { ChallengeModal } from "../components/ChallengeModal";
+
+interface Props {
+  dictionary: Dictionary;
+  vocab: VocabEntry[];
+  settings: GameSettings;
+  onExit: () => void;
+  themeMode: string;
+  onToggleTheme: () => void;
+}
+
+const DOT_COLORS: Record<string, string> = {
+  [YOU_ID]: "var(--accent)",
+  [BOT_ID]: "#c0392b",
+};
+
+export function Game({
+  dictionary,
+  vocab,
+  settings,
+  onExit,
+  themeMode,
+  onToggleTheme,
+}: Props) {
+  const g = useGame(dictionary, vocab, settings);
+  const { game } = g;
+  const [showSettings, setShowSettings] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const scores = useMemo(() => allScores(game), [game]);
+  const remainingSec =
+    game.endgame.active && game.endgame.remainingMs !== null
+      ? Math.ceil(game.endgame.remainingMs / 1000)
+      : null;
+
+  const challengeWordObj: ClaimedWord | null =
+    g.challengeId !== null
+      ? game.words.find((w) => w.id === g.challengeId) ?? null
+      : null;
+
+  const isSelected = (id: number) => g.selectedTileIds.has(id);
+
+  // Keep focus on the input on desktop for fast typing.
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 900px)").matches) inputRef.current?.focus();
+  }, []);
+
+  const ended = game.phase === "ended";
+
+  return (
+    <div className="app">
+      <TopBar themeMode={themeMode} onToggleTheme={onToggleTheme}>
+        <span className="chip">vs. Computer</span>
+        {remainingSec !== null && (
+          <span className="chip" aria-live="polite">
+            ⏳ <span className="countdown">{remainingSec}s</span>
+          </span>
+        )}
+        <button className="icon-btn" onClick={() => setShowSettings(true)}>
+          New game
+        </button>
+        {!ended && (
+          <button className="icon-btn" onClick={g.endNow}>
+            End game
+          </button>
+        )}
+        <button className="icon-btn" onClick={onExit} aria-label="Back to home">
+          Home
+        </button>
+      </TopBar>
+
+      <div className="game">
+        <div className="board">
+          <div className="left-col">
+            <div className="section-label">
+              <span>Center Pool</span>
+              <span>{game.bag.length} in bag</span>
+            </div>
+            <div className="pool-panel">
+              {game.pool.length === 0 ? (
+                <div className="pool-empty">
+                  {game.bag.length > 0
+                    ? "Flip a tile to begin."
+                    : "The bag is empty."}
+                </div>
+              ) : (
+                <div className="pool-tiles">
+                  {game.pool.map((t) => (
+                    <Tile
+                      key={t.id}
+                      letter={t.letter}
+                      used={isSelected(t.id)}
+                      onTap={() => g.tapTile(t.id, t.letter)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="players">
+            {game.players.map((p) => {
+              const words = game.words.filter((w) => w.ownerId === p.id);
+              return (
+                <div className="player-row" key={p.id}>
+                  <div className="player-head">
+                    <span
+                      className="player-dot"
+                      style={{ background: DOT_COLORS[p.id] ?? "var(--muted)" }}
+                    />
+                    <span className="player-name">
+                      {p.name}
+                      {p.id === YOU_ID && <span className="you">(you)</span>}
+                    </span>
+                    <span className="player-score">
+                      🏆 {playerScore(game, p.id)}
+                    </span>
+                  </div>
+                  {words.length === 0 ? (
+                    <div className="no-words">No words yet</div>
+                  ) : (
+                    <div className="player-words">
+                      {words.map((w) => (
+                        <div className="word" key={w.id}>
+                          <span className="word-run">
+                            {w.tiles.map((t) => (
+                              <Tile
+                                key={t.id}
+                                letter={t.letter}
+                                small
+                                used={isSelected(t.id)}
+                                onTap={() => g.tapTile(t.id, t.letter, w.id)}
+                              />
+                            ))}
+                          </span>
+                          {!ended && (
+                            <button
+                              className="challenge-link"
+                              onClick={() => g.startChallenge(w.id)}
+                            >
+                              challenge
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {!ended && (
+          <div className="inputbar">
+            <div className="row">
+              {game.settings.flipMode === "manual" && (
+                <button
+                  className="btn secondary flip-btn"
+                  onClick={g.flip}
+                  disabled={game.bag.length === 0}
+                >
+                  Flip{game.bag.length > 0 ? ` (${game.bag.length})` : ""}
+                </button>
+              )}
+              <input
+                ref={inputRef}
+                value={g.pending}
+                placeholder="Type or tap a word…"
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                aria-label="Word entry"
+                onChange={(e) => g.setPending(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") g.submit();
+                  if (e.key === "Escape") g.clearPending();
+                }}
+              />
+              <button className="btn accent send" onClick={g.submit}>
+                Enter
+              </button>
+            </div>
+            <div className={`feedback ${g.feedback?.kind ?? ""}`}>
+              {g.feedback?.text ?? ""}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {challengeWordObj && (
+        <ChallengeModal
+          word={challengeWordObj.text}
+          ownerName={
+            game.players.find((p) => p.id === challengeWordObj.ownerId)?.name ??
+            "Player"
+          }
+          inDictionary={dictionary.isValid(challengeWordObj.text)}
+          onResolve={g.resolveChallenge}
+          onCancel={g.cancelChallenge}
+        />
+      )}
+
+      {showSettings && (
+        <SettingsModal
+          initial={game.settings}
+          title="New game"
+          confirmLabel="Start new game"
+          onConfirm={(s) => {
+            g.newGame(s);
+            setShowSettings(false);
+          }}
+          onCancel={() => setShowSettings(false)}
+        />
+      )}
+
+      {ended && (
+        <Results
+          scores={scores}
+          names={Object.fromEntries(game.players.map((p) => [p.id, p.name]))}
+          onPlayAgain={() => setShowSettings(true)}
+          onExit={onExit}
+        />
+      )}
+    </div>
+  );
+}
+
+function Results({
+  scores,
+  names,
+  onPlayAgain,
+  onExit,
+}: {
+  scores: Record<string, number>;
+  names: Record<string, string>;
+  onPlayAgain: () => void;
+  onExit: () => void;
+}) {
+  const rows = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  const top = rows.length > 0 ? rows[0][1] : 0;
+  return (
+    <div className="overlay" role="dialog" aria-modal="true" aria-label="Results">
+      <div className="modal">
+        <h2>Game over</h2>
+        <div className="results-list">
+          {rows.map(([id, score]) => (
+            <div
+              key={id}
+              className={`results-row ${score === top ? "winner" : ""}`}
+            >
+              <span>{names[id] ?? id}</span>
+              <span>
+                {score} {score === 1 ? "point" : "points"}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="modal-actions">
+          <button className="btn secondary" onClick={onExit}>
+            Home
+          </button>
+          <button className="btn" onClick={onPlayAgain}>
+            Play again
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
