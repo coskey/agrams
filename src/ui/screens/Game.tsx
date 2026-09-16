@@ -26,6 +26,9 @@ const DOT_COLORS: Record<string, string> = {
   [BOT_ID]: "#c0392b",
 };
 
+// A word can be challenged only briefly after it appears.
+const CHALLENGE_WINDOW_MS = 5000;
+
 export function Game({
   dictionary,
   vocab,
@@ -44,6 +47,10 @@ export function Game({
     game.endgame.active && game.endgame.remainingMs !== null
       ? Math.ceil(game.endgame.remainingMs / 1000)
       : null;
+  const nextTileSec =
+    g.autoFlipRemainingMs !== null
+      ? Math.ceil(g.autoFlipRemainingMs / 1000)
+      : null;
 
   const challengeWordObj: ClaimedWord | null =
     g.challengeId !== null
@@ -51,13 +58,29 @@ export function Game({
       : null;
 
   const isSelected = (id: number) => g.selectedTileIds.has(id);
+  const ended = game.phase === "ended";
+  const isAuto = game.settings.flipMode === "auto";
 
-  // Keep focus on the input on desktop for fast typing.
+  // A ticking clock and per-word first-seen times drive the challenge window.
+  const [clock, setClock] = useState(() => Date.now());
+  const seenRef = useRef<Map<number, number>>(new Map());
+  useEffect(() => {
+    const now = Date.now();
+    for (const w of game.words) {
+      if (!seenRef.current.has(w.id)) seenRef.current.set(w.id, now);
+    }
+  }, [game.words]);
+  useEffect(() => {
+    const t = setInterval(() => setClock(Date.now()), 500);
+    return () => clearInterval(t);
+  }, []);
+  const challengeable = (wordId: number) =>
+    !ended &&
+    clock - (seenRef.current.get(wordId) ?? clock) < CHALLENGE_WINDOW_MS;
+
   useEffect(() => {
     if (window.matchMedia("(min-width: 900px)").matches) inputRef.current?.focus();
   }, []);
-
-  const ended = game.phase === "ended";
 
   return (
     <div className="app">
@@ -68,12 +91,19 @@ export function Game({
             ⏳ <span className="countdown">{remainingSec}s</span>
           </span>
         )}
-        <button className="icon-btn" onClick={() => setShowSettings(true)}>
-          New game
-        </button>
+        {!ended && (
+          <button className="icon-btn" onClick={g.pause}>
+            Pause
+          </button>
+        )}
         {!ended && (
           <button className="icon-btn" onClick={g.endNow}>
             End game
+          </button>
+        )}
+        {ended && (
+          <button className="icon-btn" onClick={() => setShowSettings(true)}>
+            New game
           </button>
         )}
         <button className="icon-btn" onClick={onExit} aria-label="Back to home">
@@ -86,14 +116,21 @@ export function Game({
           <div className="left-col">
             <div className="section-label">
               <span>Center Pool</span>
-              <span>{game.bag.length} in bag</span>
+              <span>
+                {game.bag.length} in bag
+                {nextTileSec !== null && ` · next tile ${nextTileSec}s`}
+              </span>
             </div>
             <div className="pool-panel">
               {game.pool.length === 0 ? (
                 <div className="pool-empty">
-                  {game.bag.length > 0
-                    ? "Flip a tile to begin."
-                    : "The bag is empty."}
+                  {game.bag.length === 0
+                    ? "The bag is empty."
+                    : isAuto
+                      ? nextTileSec !== null
+                        ? `First tile in ${nextTileSec}s…`
+                        : ""
+                      : "Flip a tile to begin."}
                 </div>
               ) : (
                 <div className="pool-tiles">
@@ -124,9 +161,7 @@ export function Game({
                       {p.name}
                       {p.id === YOU_ID && <span className="you">(you)</span>}
                     </span>
-                    <span className="player-score">
-                      🏆 {playerScore(game, p.id)}
-                    </span>
+                    <span className="player-score">🏆 {playerScore(game, p.id)}</span>
                   </div>
                   {words.length === 0 ? (
                     <div className="no-words">No words yet</div>
@@ -145,7 +180,7 @@ export function Game({
                               />
                             ))}
                           </span>
-                          {!ended && (
+                          {challengeable(w.id) && (
                             <button
                               className="challenge-link"
                               onClick={() => g.startChallenge(w.id)}
@@ -193,8 +228,15 @@ export function Game({
                 Enter
               </button>
             </div>
-            <div className={`feedback ${g.feedback?.kind ?? ""}`}>
-              {g.feedback?.text ?? ""}
+            <div className="feedback-line">
+              {g.feedback && (
+                <span
+                  key={g.feedback.id}
+                  className={`feedback-msg ${g.feedback.kind}`}
+                >
+                  {g.feedback.text}
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -211,6 +253,19 @@ export function Game({
           onResolve={g.resolveChallenge}
           onCancel={g.cancelChallenge}
         />
+      )}
+
+      {g.paused && (
+        <div className="overlay" role="dialog" aria-modal="true" aria-label="Paused">
+          <div className="modal pause-modal">
+            <h2>Game paused</h2>
+            <div className="modal-actions">
+              <button className="btn" onClick={g.resume}>
+                Resume
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showSettings && (
@@ -257,10 +312,7 @@ function Results({
         <h2>Game over</h2>
         <div className="results-list">
           {rows.map(([id, score]) => (
-            <div
-              key={id}
-              className={`results-row ${score === top ? "winner" : ""}`}
-            >
+            <div key={id} className={`results-row ${score === top ? "winner" : ""}`}>
               <span>{names[id] ?? id}</span>
               <span>
                 {score} {score === 1 ? "point" : "points"}

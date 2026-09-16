@@ -293,6 +293,11 @@ export interface AnalyzeResult {
   canClaim: boolean;
   /** Source word ids this word could legally steal (strict rule + pool letters).*/
   steals: number[];
+  /** A word uses all of an existing word's letters but only extends it (no
+   *  rearrangement) — blocked by the strict rule. */
+  blockedSameRoot: boolean;
+  /** A structurally-legal steal exists, but the extra letters aren't in the pool.*/
+  blockedNeedLetters: boolean;
 }
 
 /** Inspect a candidate word without changing state. Used for hints and to drive
@@ -312,14 +317,29 @@ export function analyzeWord(
     normalized.length > 0 && countsContain(poolCounts, wordCounts);
 
   const steals: number[] = [];
+  let blockedSameRoot = false;
+  let blockedNeedLetters = false;
   if (normalized.length > 0) {
     for (const w of state.words) {
-      if (!checkStealStructure(w.text, normalized).legal) continue;
-      const extra = subtractCounts(wordCounts, lettersToCounts(w.text));
-      if (countsContain(poolCounts, extra)) steals.push(w.id);
+      const structure = checkStealStructure(w.text, normalized);
+      if (structure.legal) {
+        const extra = subtractCounts(wordCounts, lettersToCounts(w.text));
+        if (countsContain(poolCounts, extra)) steals.push(w.id);
+        else blockedNeedLetters = true;
+      } else if (structure.reason === "SAME_ROOT") {
+        blockedSameRoot = true;
+      }
     }
   }
-  return { normalized, tooShort, dictionaryValid, canClaim, steals };
+  return {
+    normalized,
+    tooShort,
+    dictionaryValid,
+    canClaim,
+    steals,
+    blockedSameRoot,
+    blockedNeedLetters,
+  };
 }
 
 function poolLetterCounts(pool: Tile[]): number[] {
@@ -398,12 +418,41 @@ export function attemptWord(
     return { ok: true, state: next, move: { kind: "steal", playerId, text: normalized, sourceWordId: source.id } };
   }
 
-  // Valid dictionary word but the letters are not available.
+  // Explain why it could not be made, most specific first.
+  if (analysis.blockedSameRoot) {
+    return {
+      ok: false,
+      reason: "NOT_A_STEAL",
+      message:
+        "That just adds letters to an existing word. A steal has to rearrange it.",
+    };
+  }
+  if (analysis.blockedNeedLetters) {
+    return {
+      ok: false,
+      reason: "NOT_FORMABLE",
+      message: "You don't have the extra pool letters needed for that steal.",
+    };
+  }
   return {
     ok: false,
     reason: "NOT_FORMABLE",
-    message: "Those letters are not available to make that word.",
+    message: "Those letters aren't available to make that word.",
   };
+}
+
+/** Whether a move is currently legal, without applying it. Used by the bot to
+ *  re-validate a planned move before it commits. */
+export function moveIsLegal(
+  state: GameState,
+  dictionary: Dictionary,
+  move: Move,
+): boolean {
+  if (state.phase !== "playing") return false;
+  const analysis = analyzeWord(state, dictionary, move.text);
+  if (analysis.tooShort || !analysis.dictionaryValid) return false;
+  if (move.kind === "claim") return analysis.canClaim;
+  return analysis.steals.includes(move.sourceWordId);
 }
 
 /** Resolve a challenge against a claimed word. When ruled invalid the word's

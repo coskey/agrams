@@ -301,6 +301,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-weight: 800;
   font-size: 22px;
   background: var(--tile-bg);
@@ -387,8 +388,8 @@ button {
 }
 .player-words {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 10px 16px;
 }
 .word {
   display: inline-flex;
@@ -408,6 +409,16 @@ button {
   border: none;
   text-decoration: underline;
   padding: 2px 4px;
+  animation: challenge-fade 5s linear forwards;
+}
+@keyframes challenge-fade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 .no-words {
   color: var(--muted);
@@ -458,17 +469,29 @@ button {
   padding: 12px 14px;
   white-space: nowrap;
 }
-.feedback {
+.feedback-line {
   max-width: 1100px;
   margin: 6px auto 0;
   font-size: 13px;
   min-height: 18px;
 }
-.feedback.error {
+.feedback-msg {
+  animation: feedback-fade 2.5s ease forwards;
+}
+.feedback-msg.error {
   color: var(--danger);
 }
-.feedback.ok {
+.feedback-msg.ok {
   color: var(--success);
+}
+@keyframes feedback-fade {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 .countdown {
   font-variant-numeric: tabular-nums;
@@ -515,6 +538,12 @@ button {
 }
 .modal-actions .btn {
   flex: 1;
+}
+.pause-modal {
+  text-align: center;
+}
+.pause-modal .modal-actions {
+  justify-content: center;
 }
 .field {
   display: flex;

@@ -8,6 +8,7 @@ import {
   endGame,
   playerScore,
   wordScore,
+  moveIsLegal,
 } from "./game";
 import { Dictionary } from "./dictionary";
 import { checkStealStructure } from "./steal";
@@ -21,7 +22,7 @@ import type { Player, Tile } from "./types";
 
 const DICT = new Dictionary([
   "CARE", "RACER", "CAT", "CATS", "SCAT", "ART", "PART", "TEA", "EAT", "ATE",
-  "RACE", "ACRE", "CARET", "CATER", "TRACE",
+  "RACE", "ACRE", "CARET", "CATER", "TRACE", "MILE", "SMILE", "SLIME", "LIMES",
 ]);
 
 const PLAYERS: Player[] = [
@@ -193,5 +194,47 @@ describe("game flow", () => {
     for (let i = 1; i < s.events.length; i++) {
       expect(s.events[i].seq).toBeGreaterThan(s.events[i - 1].seq);
     }
+  });
+});
+
+describe("steal diagnostics and legality", () => {
+  // Bag pops M, I, L, E, S in order.
+  function milesGame() {
+    const bag: Tile[] = [
+      { id: 4, letter: "S" },
+      { id: 3, letter: "E" },
+      { id: 2, letter: "L" },
+      { id: 1, letter: "I" },
+      { id: 0, letter: "M" },
+    ];
+    let s = createGame({ players: PLAYERS, bag });
+    for (let i = 0; i < 5; i++) s = flipNextTile(s); // pool: M I L E S
+    const claim = attemptWord(s, DICT, "you", "MILE");
+    if (!claim.ok) throw new Error("setup claim failed");
+    return claim.state; // pool: S ; word: MILE
+  }
+
+  it("explains that a prefix-only extension is not a rearrangement", () => {
+    const s = milesGame();
+    const r = attemptWord(s, DICT, "bot", "SMILE"); // MILE + S, but MILE ⊂ SMILE
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reason).toBe("NOT_A_STEAL");
+      expect(r.message.toLowerCase()).toContain("rearrange");
+    }
+  });
+
+  it("allows a genuine rearrangement steal (MILE -> SLIME)", () => {
+    const s = milesGame();
+    const r = attemptWord(s, DICT, "bot", "SLIME");
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.move.kind).toBe("steal");
+  });
+
+  it("moveIsLegal agrees with attemptWord", () => {
+    const s = milesGame();
+    const src = s.words[0].id;
+    expect(moveIsLegal(s, DICT, { kind: "steal", playerId: "bot", text: "SLIME", sourceWordId: src })).toBe(true);
+    expect(moveIsLegal(s, DICT, { kind: "steal", playerId: "bot", text: "SMILE", sourceWordId: src })).toBe(false);
   });
 });

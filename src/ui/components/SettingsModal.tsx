@@ -36,6 +36,15 @@ export function SettingsModal({
       endgameSeconds: Math.min(180, Math.max(15, cur.endgameSeconds + delta)),
     }));
 
+  const setFlipInterval = (deltaMs: number) =>
+    setS((cur) => ({
+      ...cur,
+      autoFlipIntervalMs: Math.min(
+        15000,
+        Math.max(3000, cur.autoFlipIntervalMs + deltaMs),
+      ),
+    }));
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label={title}>
       <div className="modal">
@@ -76,9 +85,25 @@ export function SettingsModal({
           <span className="hint">
             {s.flipMode === "manual"
               ? "You reveal each tile with the Flip button."
-              : `A new tile appears every ${Math.round(s.autoFlipIntervalMs / 1000)}s.`}
+              : "A new tile appears automatically on a timer."}
           </span>
         </div>
+
+        {s.flipMode === "auto" && (
+          <div className="field">
+            <label>Seconds between tiles</label>
+            <div className="stepper">
+              <button type="button" onClick={() => setFlipInterval(-1000)} aria-label="Decrease flip interval">
+                −
+              </button>
+              <span className="val">{Math.round(s.autoFlipIntervalMs / 1000)}s</span>
+              <button type="button" onClick={() => setFlipInterval(1000)} aria-label="Increase flip interval">
+                +
+              </button>
+            </div>
+            <span className="hint">Between 3 and 15 seconds.</span>
+          </div>
+        )}
 
         <div className="field">
           <label>Endgame timer</label>
