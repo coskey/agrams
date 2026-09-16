@@ -190,12 +190,11 @@ export function useGame(
       if (m.kind === "steal") {
         const src = g.words.find((w) => w.id === m.sourceWordId);
         setLastWordEvent({ original: src?.text ?? "", created: m.text, outcome: "steal" });
-        setFeedback({ text: `Stole ${m.text}`, kind: "ok" });
+        setFeedback({ text: `Stole "${m.text}"`, kind: "ok" });
       } else {
         setLastWordEvent({ original: "", created: m.text, outcome: "claim" });
-        setFeedback({ text: `Claimed ${m.text}`, kind: "ok" });
+        setFeedback({ text: `Claimed "${m.text}"`, kind: "ok" });
       }
-      clearPending();
     } else {
       // Prefill feedback with a same-root source, if the rejection was one.
       const analysis = analyzeWord(g, rules, text);
@@ -209,6 +208,8 @@ export function useGame(
       setLastWordEvent({ original, created: analysis.normalized, outcome: "rejected" });
       setFeedback({ text: result.message, kind: "error" });
     }
+    // Clear the entry box after every attempt.
+    clearPending();
   }, [pending, sourceIds, rules, clearPending, setFeedback]);
 
   const flip = useCallback(() => {

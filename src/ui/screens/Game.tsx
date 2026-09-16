@@ -208,7 +208,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                 autoCapitalize="characters"
                 spellCheck={false}
                 aria-label="Word entry"
-                onChange={(e) => g.setPending(e.target.value.toUpperCase())}
+                onChange={(e) => g.setPending(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") g.submit();
                   if (e.key === "Escape") g.clearPending();

@@ -386,7 +386,7 @@ export function attemptWord(
     return {
       ok: false,
       reason: "TOO_SHORT",
-      message: `Words must be at least ${state.settings.minWordLength} letters.`,
+      message: `"${normalized}" is too short — words must be at least ${state.settings.minWordLength} letters.`,
     };
   }
   if (!analysis.dictionaryValid) {
@@ -407,7 +407,7 @@ export function attemptWord(
       return {
         ok: false,
         reason: "NOT_A_STEAL",
-        message: "That is not a legal steal of the selected word.",
+        message: `"${normalized}" is not a legal steal of the selected word.`,
       };
     }
     const next = applySteal(state, playerId, normalized, id);
@@ -436,21 +436,20 @@ export function attemptWord(
     return {
       ok: false,
       reason: "NOT_A_STEAL",
-      message:
-        "That word shares a root with the one you're stealing. Try a different word.",
+      message: `"${normalized}" shares a root with the word you're stealing. Try a different word.`,
     };
   }
   if (analysis.blockedNeedLetters) {
     return {
       ok: false,
       reason: "NOT_FORMABLE",
-      message: "You don't have the extra pool letters needed for that steal.",
+      message: `"${normalized}" needs letters that aren't in the pool.`,
     };
   }
   return {
     ok: false,
     reason: "NOT_FORMABLE",
-    message: "Those letters aren't available to make that word.",
+    message: `"${normalized}" can't be made from the letters available.`,
   };
 }
 

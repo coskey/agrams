@@ -45,7 +45,7 @@ export function WordFeedback({ last, onClose }: Props) {
             value={original}
             placeholder="(none for a fresh word)"
             autoCapitalize="characters"
-            onChange={(e) => setOriginal(e.target.value.toUpperCase())}
+            onChange={(e) => setOriginal(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
           />
         </div>
 
@@ -56,7 +56,7 @@ export function WordFeedback({ last, onClose }: Props) {
             className="text-input"
             value={created}
             autoCapitalize="characters"
-            onChange={(e) => setCreated(e.target.value.toUpperCase())}
+            onChange={(e) => setCreated(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
           />
         </div>
 
