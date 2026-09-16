@@ -1,6 +1,6 @@
 # Agrams — Product Specification
 
-Status: Draft v0.3
+Status: Draft v0.4 — ready for Phase 1
 Last updated: 2026-09-16
 
 Agrams is a web-based version of the classic word game **Anagrams** (also known
@@ -23,6 +23,11 @@ is the reference we will code against, and it will evolve as decisions get made.
   game** button (host-only online) usable at any time. **Minimum word length**
   default 4, adjustable **2–6** in settings. UI has **distinct desktop and
   mobile layouts**. Added **notation/replay** to the backlog (Section 10).
+- v0.4: **tile flipping** supports **both manual and auto-flip, toggled in Game
+  Settings** (default manual; auto-flip interval adjustable). Confirmed: players
+  **can steal their own words**; the **bot does not challenge** the human in
+  Phase 1; **basic accessibility** is built in from Phase 1. All Phase 1
+  decisions are now settled.
 
 ---
 
@@ -116,17 +121,20 @@ the manual challenge system, not by a fuzzy stemmer.
 - The bot plays only from a **restricted, common-word vocabulary**, even though
   the full list validates human words. This keeps it from winning on obscure
   words.
-- The bot can make moves, be the target of the human's steals, and (open
-  question) optionally challenge the human.
+- The bot makes moves and can be the target of the human's steals. In Phase 1
+  the bot does **not** challenge the human (human words are already
+  auto-validated); only the human may challenge the bot.
 
 ### 2.6 Tile bag
 
 - **Bananagrams distribution: 144 tiles, no blanks.** Counts: A13 B3 C3 D6 E18
   F3 G4 H3 I12 J2 K2 L5 M3 N8 O11 P3 Q2 R9 S6 T9 U6 V3 W3 X2 Y3 Z2.
-- Tiles are drawn from this bag one at a time into the pool. The flip mechanism
-  is still being decided (Section 9, Q6): leading proposal is a **manual "flip
-  next tile" button** the player controls, with the bot reacting to each new
-  pool state.
+- Tiles are drawn from this bag one at a time into the pool. **Flipping supports
+  two modes, toggled in Game Settings:**
+  - **Manual** (default): a "flip next tile" button the player controls; the bot
+    reacts to each new pool state.
+  - **Auto-flip:** a new tile is revealed automatically on an interval
+    (adjustable in settings), creating time pressure.
 
 ### 2.7 Game end and the endgame timer
 
@@ -240,6 +248,16 @@ design (mirroring how NYT Games adapts across screen sizes):
 - Both share the same components and engine state; only arrangement and input
   emphasis differ, with breakpoints defined in one place.
 
+### 5.6 Accessibility
+
+Basic accessibility is built in from Phase 1, since retrofitting is costly:
+
+- Full **keyboard navigation** (the game is playable without a mouse or touch).
+- **Screen-reader** labels for tiles, pool, player words, scores, and modals.
+- **Color-blind-safe** accents and reliance on text/position rather than color
+  alone to convey meaning.
+- Respect for OS **reduced-motion** and font-scaling preferences.
+
 ---
 
 ## 6. Practice mode (later phase)
@@ -315,16 +333,15 @@ Resolved items are struck through; the rest still need answers.
 
 **Rules and scoring**
 1. ~~Minimum word length 4, scoring length − 3.~~ Confirmed.
-2. Can a player steal their **own** words? (Classic: yes. Assumed yes — please
-   confirm.)
+2. ~~Steal your own words.~~ Yes (classic).
 3. ~~Auto-validate claims vs. trust-and-challenge.~~ Auto-validate in Phase 1;
    social play in Phase 2.
 4. ~~Blanks/wildcards.~~ No blanks (Bananagrams bag).
 
 **Tiles and pacing**
 5. ~~Tile distribution.~~ Bananagrams, 144 tiles.
-6. **Tile flipping (open):** manual "flip next tile" button (proposed) vs.
-   auto-flip on a timer? In vs-bot, does the human control the flip?
+6. ~~Tile flipping.~~ Both manual (default) and auto-flip, toggled in settings
+   (Section 2.6).
 7. Any **turn timer** or clock during the main game? (Assumed none in Phase 1;
    the endgame countdown in Section 2.7 is separate.)
 
@@ -335,7 +352,7 @@ Resolved items are struck through; the rest still need answers.
 **Bot**
 9. For medium difficulty, roughly how often should the bot beat an average
    player? Any word categories it should avoid entirely?
-10. Should the bot ever **challenge** the human in Phase 1, or only the reverse?
+10. ~~Bot challenging the human.~~ No in Phase 1; only the human challenges.
 
 **Word list**
 11. ~~List choice.~~ ENABLE. (Any custom additions/removals?)
@@ -344,8 +361,7 @@ Resolved items are struck through; the rest still need answers.
 12. ~~Exact screenshot match vs. direction.~~ NYT-Games-style B&W, light + dark.
 13. ~~Front-end framework / deploy.~~ React + TypeScript + Vite; static deploy.
 14. Sound effects / haptics in scope for Phase 1? (Assumed no.)
-15. Any accessibility requirements to design in now (screen reader support,
-    color-blind-safe accents, font scaling)?
+15. ~~Accessibility in Phase 1.~~ Yes, basic support built in (Section 5.6).
 
 **Later phases**
 16. For online play (Phase 3): anonymous rooms only, or accounts and history?
