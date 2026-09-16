@@ -1,6 +1,6 @@
 # Agrams — Product Specification
 
-Status: Draft v0.2
+Status: Draft v0.3
 Last updated: 2026-09-16
 
 Agrams is a web-based version of the classic word game **Anagrams** (also known
@@ -18,6 +18,11 @@ is the reference we will code against, and it will evolve as decisions get made.
   deploy for Phase 1. Visual style is **NYT-Games-style minimalist black & white
   with light and dark mode** (replaces the earlier warm-brown direction). Still
   open: tile-flip mechanism and exact game-end trigger (Section 9, Q6/Q8).
+- v0.3: **game end** is a countdown that starts when the last tile is flipped
+  (default 60s, adjustable), **+15s per steal capped at 60s**, plus an **End
+  game** button (host-only online) usable at any time. **Minimum word length**
+  default 4, adjustable **2–6** in settings. UI has **distinct desktop and
+  mobile layouts**. Added **notation/replay** to the backlog (Section 10).
 
 ---
 
@@ -63,7 +68,8 @@ stack.
 
 ### 2.2 Minimum word length and scoring
 
-- Minimum word length: **4 letters**.
+- Minimum word length: **4 letters** by default, adjustable in Game Settings to
+  any value from **2 to 6** letters.
 - Score per word = **length − 3** (4 letters = 1 point, 5 = 2, 6 = 3, ...).
 - When a word is stolen, its points move to the new owner; the old word ceases
   to exist.
@@ -121,6 +127,19 @@ the manual challenge system, not by a fuzzy stemmer.
   is still being decided (Section 9, Q6): leading proposal is a **manual "flip
   next tile" button** the player controls, with the bot reacting to each new
   pool state.
+
+### 2.7 Game end and the endgame timer
+
+- Once the **last tile has been flipped** (bag empty), a countdown starts,
+  default **60 seconds**, adjustable in Game Settings.
+- Every **steal** during the countdown **adds 15 seconds**, capped so the
+  remaining time never exceeds the **60-second max**. This keeps the endgame
+  alive while players are actively stealing, then lets it wind down.
+- An **"End game" button** is available at any point in the game. In
+  single-player the player presses it; in online multiplayer only the **host**
+  can. It ends the game immediately.
+- When the countdown reaches zero (or End game is pressed), scoring is finalized
+  per Section 2.2.
 
 ---
 
@@ -207,6 +226,20 @@ happened to the tiles.
   primarily by name/position and a small muted accent dot per player, not by
   large blocks of color.
 
+### 5.5 Responsive layouts (desktop and mobile)
+
+The UI has **distinct layouts** for desktop and mobile, not just a scaled single
+design (mirroring how NYT Games adapts across screen sizes):
+
+- **Mobile:** a single vertical column, the pool near the top, player rows
+  stacked below, and the word-entry bar pinned to the bottom for thumb reach.
+  Tapping tiles is the primary input.
+- **Desktop:** a wider multi-column layout, for example the board/pool alongside
+  player panels and controls, using the horizontal space; keyboard entry is
+  first-class.
+- Both share the same components and engine state; only arrangement and input
+  emphasis differ, with breakpoints defined in one place.
+
 ---
 
 ## 6. Practice mode (later phase)
@@ -266,6 +299,11 @@ in-room chat, and the multiplayer challenge/vote flow across devices.
 Solo practice with the hint/research tool from Section 6, both hypothetical and
 pool-based.
 
+**Phase 5 — Game notation and replay.**
+A compact, human-readable notation recording every event so a finished game can
+be **replayed step by step**, in the spirit of chess.com and colonist.io game
+reviews. See Section 10.
+
 Phases can overlap where engine work is shared, but this is the intended order
 of user-visible releases.
 
@@ -287,12 +325,12 @@ Resolved items are struck through; the rest still need answers.
 5. ~~Tile distribution.~~ Bananagrams, 144 tiles.
 6. **Tile flipping (open):** manual "flip next tile" button (proposed) vs.
    auto-flip on a timer? In vs-bot, does the human control the flip?
-7. Any **turn timer** or global game clock? (Assumed none in Phase 1.)
+7. Any **turn timer** or clock during the main game? (Assumed none in Phase 1;
+   the endgame countdown in Section 2.7 is separate.)
 
 **End of game**
-8. **Game-end trigger (open):** proposed default is **bag empty + ~15s idle with
-   no move**, plus an explicit "End game" button. Alternatives: first-to-N-points
-   target, or a fixed time limit. Which do you want for Phase 1?
+8. ~~Game-end trigger.~~ Endgame countdown (default 60s, +15s per steal, capped
+   at 60s) starting when the bag empties, plus an End game button (Section 2.7).
 
 **Bot**
 9. For medium difficulty, roughly how often should the bot beat an average
@@ -313,3 +351,19 @@ Resolved items are struck through; the rest still need answers.
 16. For online play (Phase 3): anonymous rooms only, or accounts and history?
 17. For practice (Phase 4): should the hint tool be usable inside a real game as
     a training aid, or strictly limited to practice mode?
+
+---
+
+## 10. Future feature backlog
+
+Ideas beyond the numbered phases, captured so the engine can accommodate them:
+
+- **Game notation and replay (Phase 5).** Record each game as an ordered,
+  serializable log of events (tile flips, claims, steals with source/target,
+  challenges and outcomes, timer changes, game end). From this we can offer a
+  **replay viewer** that steps or scrubs through the game, like chess.com's
+  move-by-move review or colonist.io's replay. Designing the engine to emit this
+  event log from the start (even in Phase 1) makes replay cheap to add later and
+  doubles as the online sync format.
+- Additional bot difficulty levels beyond medium.
+- House-rule presets and shareable game settings.
