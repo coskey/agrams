@@ -22,6 +22,12 @@ const DICT = new Dictionary([
   "RACE", "ACRE", "CARET", "CATER", "TRACE", "MILE", "MILES", "SMILE", "SLIME",
   "LIMES", "NEW", "NEWER", "RENEW", "RENEWS", "CAREFUL", "AXIS", "TAXI", "TAXIS",
   "DO", "REDO", "KIND", "KINDNESS",
+  // Words from tester feedback (same-root steals that were wrongly allowed).
+  "JEAN", "JEANS", "WHINE", "WHINER", "THWARTED", "THWARTEDLY", "CORONA",
+  "CORONAL", "EMOTE", "EMOTIVE", "POSADA", "POUSADA", "FLAME", "FLAMER",
+  "FLAIR", "FLAIRS", "PIZE", "PIZES", "JEE", "JEES",
+  // For the general (non-curated) rule.
+  "ACT", "ACTIVE", "TEACH", "TEACHER",
 ]);
 
 const INFLECTIONS = [
@@ -79,6 +85,16 @@ describe("root detection (Morphology.sameRoot)", () => {
     ["AXIS", "TAXIS", false], // different roots (axis / taxi)
     ["ART", "PART", false], // different roots
     ["CARE", "RACER", false], // rearrangement, different root
+    // Tester feedback: these must all be blocked.
+    ["JEAN", "JEANS", true], // plural (+S)
+    ["WHINE", "WHINER", true], // agent (+R)
+    ["THWARTED", "THWARTEDLY", true], // adverb (+LY)
+    ["CORONA", "CORONAL", true], // derivation (+AL)
+    ["EMOTE", "EMOTIVE", true], // spelling-change derivation (curated)
+    ["POSADA", "POUSADA", true], // variant spelling (curated)
+    // The general rule catches these without a curated entry.
+    ["ACT", "ACTIVE", true], // derivation (-ive)
+    ["TEACH", "TEACHER", true], // agent (-er)
   ];
   for (const [a, b, expected] of cases) {
     it(`${a} vs ${b} -> sameRoot ${expected}`, () => {

@@ -72,7 +72,9 @@ describe("analyzeHelp — remaining-tiles supply", () => {
     // Only an S is left in play (no E, no T): +T (CART) and +E (CARE) are gone.
     const supply = lettersToCounts("S");
     const help = analyzeHelp("CAR", NO_POOL, supply, d2, m2);
-    expect(help.plus1.map((s) => s.word).sort()).toEqual(["ARCS", "CARS", "SCAR"]);
+    // +T (CART) is gone (no T). CARS is dropped too — it's the same root as CAR
+    // (a plural), leaving the different-root anagrams ARCS and SCAR.
+    expect(help.plus1.map((s) => s.word).sort()).toEqual(["ARCS", "SCAR"]);
     // Still glows yellow: the S needed is drawable and it's a common letter.
     expect(help.glow).toBe("yellow");
   });
