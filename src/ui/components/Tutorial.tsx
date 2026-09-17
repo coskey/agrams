@@ -15,9 +15,8 @@ const STEPS: Step[] = [
     title: "Welcome to Agrams",
     body: (
       <>
-        Build words from the letters in the center pool, and steal your
-        opponent&rsquo;s words by rearranging them into longer ones. You&rsquo;re
-        playing against the computer.
+        Build words from the letters in the center pool, and steal words already
+        on the board by rearranging them into longer ones.
       </>
     ),
   },
@@ -35,7 +34,7 @@ const STEPS: Step[] = [
     body: (
       <>
         Take an existing word, add one or more pool letters, and rearrange it into
-        a new word. A simple add-on doesn&rsquo;t count:
+        a new, different word:
         <div style={{ display: "flex", gap: 6, alignItems: "center", margin: "10px 0" }}>
           {"CARE".split("").map((c, i) => (
             <Tile key={i} letter={c} small />
@@ -45,7 +44,8 @@ const STEPS: Step[] = [
             <Tile key={i} letter={c} small />
           ))}
         </div>
-        CARE → CATS is fine; CARE → CARES is not (that&rsquo;s not a rearrangement).
+        Just adding letters to make another form of the same word (CARE &rarr;
+        CARES) doesn&rsquo;t count.
       </>
     ),
   },
@@ -63,9 +63,9 @@ const STEPS: Step[] = [
     title: "Challenge & endgame",
     body: (
       <>
-        Doubt one of the bot&rsquo;s words? Tap Challenge on it to rule it out.
-        When the last tile is flipped a countdown begins; every steal adds time.
-        Play the perfect word and good luck!
+        Doubt a word on the board? Tap Challenge on it to rule it out. When the
+        last tile is flipped a countdown begins; every steal adds time. Play the
+        perfect word and good luck!
       </>
     ),
   },
@@ -78,12 +78,10 @@ export function Tutorial({ onDone }: Props) {
 
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="How to play">
-      <div className="modal">
-        <div className="steps" style={{ color: "var(--muted)", fontSize: 13, marginBottom: 6 }}>
-          Step {i + 1} of {STEPS.length}
-        </div>
+      <div className="modal tutorial-modal">
+        <div className="steps">Step {i + 1} of {STEPS.length}</div>
         <h2>{step.title}</h2>
-        <p style={{ fontSize: 15, lineHeight: 1.55 }}>{step.body}</p>
+        <p className="tutorial-body">{step.body}</p>
         <div className="modal-actions">
           <button className="btn secondary" onClick={onDone}>
             Skip

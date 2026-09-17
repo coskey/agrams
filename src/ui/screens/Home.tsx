@@ -1,4 +1,5 @@
 import { TopBar } from "../components/TopBar";
+import { Wordmark } from "../components/Wordmark";
 
 interface Props {
   onPlay: () => void;
@@ -8,20 +9,12 @@ interface Props {
   onToggleTheme: () => void;
 }
 
-// Simple decorative 3x3 logo grid (filled/empty like a mini crossword).
-const LOGO_FILL = [false, true, false, true, false, true, false, true, false];
-
 export function Home({ onPlay, onPractice, onHowToPlay, themeMode, onToggleTheme }: Props) {
   return (
     <div className="app">
       <TopBar themeMode={themeMode} onToggleTheme={onToggleTheme} />
       <div className="home">
-        <div className="logo" aria-hidden="true">
-          {LOGO_FILL.map((f, i) => (
-            <span key={i} className={f ? "fill" : ""} />
-          ))}
-        </div>
-        <h1>Agrams</h1>
+        <Wordmark className="hero" />
         <p className="tag">
           The classic word game Anagrams. Flip letters, build words, and steal
           them right back.

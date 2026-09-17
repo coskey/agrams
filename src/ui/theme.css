@@ -111,10 +111,34 @@ button {
 }
 
 .wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.12em;
   font-family: var(--serif);
   font-weight: 700;
   font-size: 20px;
+  line-height: 1;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.logo-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 800;
+  font-size: 0.78em;
+  width: 1.35em;
+  height: 1.35em;
+  border: 0.1em solid var(--tile-border);
+  border-radius: 0.2em;
+  background: var(--tile-bg);
+  color: var(--tile-fg);
+  box-shadow: var(--shadow);
+}
+.wordmark.hero {
+  font-size: clamp(40px, 12vw, 60px);
+  margin-bottom: 4px;
 }
 
 .topbar .spacer {
@@ -682,6 +706,52 @@ button {
 }
 
 /* Tutorial */
+.tutorial-modal {
+  max-width: 480px;
+}
+.tutorial-modal .steps {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.tutorial-body {
+  font-size: 15px;
+  line-height: 1.55;
+}
+/* On phones, use nearly the whole screen and shrink the text so no step scrolls. */
+@media (max-width: 560px) {
+  .overlay {
+    padding: 10px;
+  }
+  .tutorial-modal {
+    max-width: none;
+    width: 100%;
+    max-height: 96vh;
+    padding: 16px;
+  }
+  .tutorial-modal h2 {
+    font-size: 19px;
+    margin-bottom: 4px;
+  }
+  .tutorial-body {
+    font-size: 13px;
+    line-height: 1.42;
+  }
+  .tutorial-modal .steps {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  .tutorial-modal .tile.small {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+    border-radius: 5px;
+  }
+  .tutorial-modal .modal-actions {
+    margin-top: 12px;
+  }
+}
+
 .tutorial-card {
   border: 1px solid var(--accent);
   background: var(--panel);

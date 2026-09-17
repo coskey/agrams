@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Wordmark } from "./Wordmark";
 
 interface Props {
   children?: ReactNode;
@@ -9,7 +10,7 @@ interface Props {
 export function TopBar({ children, onToggleTheme, themeMode }: Props) {
   return (
     <header className="topbar">
-      <span className="wordmark">Agrams</span>
+      <Wordmark />
       <div className="spacer" />
       {children}
       <button
