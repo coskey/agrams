@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createGame,
   flipNextTile,
   attemptWord,
   analyzeWord,
+  analyzeHelp,
   challengeWord,
   tickEndgame,
   endGame,
@@ -13,6 +14,9 @@ import {
   type Player,
   type Move,
   type Rules,
+  type Tile,
+  type WordHelp,
+  type Glow,
 } from "../engine";
 import type { VocabEntry } from "../engine/dictionary";
 import { chooseBotMove, botLevel } from "../bot/bot";
@@ -55,6 +59,16 @@ function playersFor(mode: GameSettings["mode"]): Player[] {
 }
 
 const START_COUNTDOWN_MS = 3000;
+
+/** 26-length letter counts for a set of tiles. */
+function countsFromTiles(tiles: Tile[]): number[] {
+  const counts = new Array<number>(26).fill(0);
+  for (const t of tiles) {
+    const idx = t.letter.charCodeAt(0) - 65;
+    if (idx >= 0 && idx < 26) counts[idx]++;
+  }
+  return counts;
+}
 
 /** Create the opening game state. The pool always begins empty: in auto mode the
  *  opening tiles are dealt after the start countdown, and in manual mode the first
@@ -105,6 +119,10 @@ export interface UseGame {
   startCountdownSec: number | null;
   firstFourArmed: boolean;
   lastWordEvent: LastWordEvent | null;
+  helpMode: boolean;
+  toggleHelp: () => void;
+  wordGlows: Map<number, Glow>;
+  helpFor: (wordId: number) => WordHelp | undefined;
   setPending: (text: string) => void;
   tapTile: (tileId: number, letter: string, fromWordId?: number) => void;
   appendLetter: (letter: string) => void;
@@ -140,6 +158,7 @@ export function useGame(
   const [firstFourArmed, setFirstFourArmed] = useState<boolean>(
     () => initialSettings.flipMode === "manual" && initialSettings.startWithFourTiles,
   );
+  const [helpMode, setHelpMode] = useState<boolean>(() => initialSettings.helpMode);
 
   const gameRef = useRef(game);
   gameRef.current = game;
@@ -279,6 +298,8 @@ export function useGame(
     setGame((gm) => endGame(gm));
   }, []);
 
+  const toggleHelp = useCallback(() => setHelpMode((v) => !v), []);
+
   const pause = useCallback(() => setPaused(true), []);
   const resume = useCallback(() => {
     pendingBot.current = null;
@@ -301,11 +322,37 @@ export function useGame(
       countdownDeadline.current = auto ? Date.now() + START_COUNTDOWN_MS : 0;
       setStartCountdownSec(auto ? START_COUNTDOWN_MS / 1000 : null);
       setFirstFourArmed(settings.flipMode === "manual" && settings.startWithFourTiles);
+      setHelpMode(settings.helpMode);
       setAutoFlipRemainingMs(null);
       botRng.current = makeRng(Math.floor(Math.random() * 2 ** 31));
     },
     [clearPending, setFeedback],
   );
+
+  // Help Mode analysis: for each board word, its anagrams / +1/+2/+3 steals and
+  // its glow. Recomputed only when the pool or the set of words changes (not on
+  // every timer tick), and only while Help Mode is on.
+  const commonSet = useMemo(() => new Set(vocab.map((v) => v.word)), [vocab]);
+  const poolSig = game.pool.map((t) => t.letter).sort().join("");
+  const wordsSig = game.words.map((w) => `${w.id}:${w.text}`).join(",");
+  const wordHelps = useMemo(() => {
+    const map = new Map<number, WordHelp>();
+    if (!helpMode) return map;
+    const pc = countsFromTiles(game.pool);
+    for (const w of game.words) {
+      map.set(w.id, analyzeHelp(w.text, pc, rules.dictionary, rules.morphology, { commonSet, cap: 12 }));
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [helpMode, poolSig, wordsSig, commonSet, rules]);
+
+  const wordGlows = useMemo(() => {
+    const map = new Map<number, Glow>();
+    for (const [id, help] of wordHelps) if (help.glow) map.set(id, help.glow);
+    return map;
+  }, [wordHelps]);
+
+  const helpFor = useCallback((wordId: number) => wordHelps.get(wordId), [wordHelps]);
 
   // Bot loop (skipped entirely in practice mode).
   useEffect(() => {
@@ -439,6 +486,10 @@ export function useGame(
     startCountdownSec,
     firstFourArmed,
     lastWordEvent,
+    helpMode,
+    toggleHelp,
+    wordGlows,
+    helpFor,
     setPending,
     tapTile,
     appendLetter,

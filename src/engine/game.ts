@@ -38,6 +38,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   startWithFourTiles: true,
   endgameSeconds: 60,
   stealBonusSeconds: 15,
+  helpMode: false,
 };
 
 /** Points for a word: 1 point at the minimum length, plus 1 for each extra

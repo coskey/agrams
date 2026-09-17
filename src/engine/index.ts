@@ -5,4 +5,5 @@ export * from "./steal";
 export * from "./bag";
 export * from "./dictionary";
 export * from "./morphology";
+export * from "./help";
 export * from "./game";

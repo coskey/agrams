@@ -71,6 +71,27 @@ export function SettingsModal({
           </div>
         )}
 
+        {s.mode === "practice" && (
+          <div className="field">
+            <div className="toggle-row">
+              <label htmlFor="help-toggle">Help mode</label>
+              <button
+                id="help-toggle"
+                type="button"
+                role="switch"
+                aria-checked={s.helpMode}
+                className={`switch ${s.helpMode ? "on" : ""}`}
+                onClick={() => setS((c) => ({ ...c, helpMode: !c.helpMode }))}
+              >
+                <span className="knob" />
+              </button>
+            </div>
+            <span className="hint">
+              Hover a word for anagrams and steals; stealable words glow.
+            </span>
+          </div>
+        )}
+
         <div className="field">
           <label>Minimum word length</label>
           <div className="stepper">

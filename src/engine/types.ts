@@ -45,6 +45,8 @@ export interface GameSettings {
   endgameSeconds: number;
   /** Seconds added to the endgame timer on each steal. Default 15. */
   stealBonusSeconds: number;
+  /** Solo practice aid: hover a word for anagrams/steals and glow hints. */
+  helpMode: boolean;
 }
 
 export interface EndgameTimer {

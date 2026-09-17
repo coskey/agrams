@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import {
   playerScore,
   allScores,
@@ -13,6 +13,8 @@ import { Tile } from "../components/Tile";
 import { SettingsModal } from "../components/SettingsModal";
 import { ChallengeModal } from "../components/ChallengeModal";
 import { WordFeedback } from "../components/WordFeedback";
+import { HelpCard } from "../components/HelpCard";
+import { HelpTooltip, HelpPopover } from "../components/HelpOverlay";
 
 interface Props {
   rules: Rules;
@@ -36,6 +38,11 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
   const [showSettings, setShowSettings] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [hoverHelp, setHoverHelp] = useState<{ wordId: number; x: number; y: number } | null>(null);
+  const [pinnedHelp, setPinnedHelp] = useState<{
+    wordId: number;
+    rect: { top: number; bottom: number; left: number; width: number };
+  } | null>(null);
 
   const scores = useMemo(() => allScores(game), [game]);
   const remainingSec =
@@ -81,6 +88,17 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
             : wordCount <= 24
               ? 14
               : 12;
+
+  const helpOn = g.helpMode;
+  useEffect(() => {
+    if (!helpOn) {
+      setHoverHelp(null);
+      setPinnedHelp(null);
+    }
+  }, [helpOn]);
+  useEffect(() => {
+    if (pinnedHelp && !game.words.some((w) => w.id === pinnedHelp.wordId)) setPinnedHelp(null);
+  }, [game.words, pinnedHelp]);
 
   const [clock, setClock] = useState(() => Date.now());
   const seenRef = useRef<Map<number, number>>(new Map());
@@ -182,6 +200,19 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
             ⏳ <span className="countdown">{remainingSec}s</span>
           </span>
         )}
+        {!ended && game.settings.mode === "practice" && (
+          <button
+            className={`icon-btn help-toggle ${g.helpMode ? "on" : ""}`}
+            onClick={g.toggleHelp}
+            role="switch"
+            aria-checked={g.helpMode}
+            aria-label="Help mode"
+            title={`Help mode: ${g.helpMode ? "on" : "off"}`}
+          >
+            <span aria-hidden>💡</span>
+            <span className="lbl"> Help</span>
+          </button>
+        )}
         {!ended && (
           <button className="icon-btn" onClick={g.pause}>
             Pause
@@ -257,27 +288,75 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                     <div className="no-words">No words yet</div>
                   ) : (
                     <div className="player-words">
-                      {words.map((w) => (
-                        <div className={`word ${animating(w.id) ? "animating" : ""}`} key={w.id}>
-                          <span className="word-run">
-                            {w.tiles.map((t, i) => (
-                              <span key={t.id} className="tile-slot" style={{ animationDelay: `${i * 60}ms` }}>
-                                <Tile
-                                  letter={t.letter}
-                                  small
-                                  used={isSelected(t.id)}
-                                  onTap={() => g.tapTile(t.id, t.letter, w.id)}
-                                />
-                              </span>
-                            ))}
-                          </span>
-                          {challengeable(w.id) && (
-                            <button className="challenge-link" onClick={() => g.startChallenge(w.id)}>
-                              challenge
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                      {words.map((w) => {
+                        const glow = helpOn ? g.wordGlows.get(w.id) : undefined;
+                        const hoverProps =
+                          helpOn && isDesktop
+                            ? {
+                                onMouseEnter: (e: MouseEvent) =>
+                                  setHoverHelp({ wordId: w.id, x: e.clientX, y: e.clientY }),
+                                onMouseMove: (e: MouseEvent) =>
+                                  setHoverHelp({ wordId: w.id, x: e.clientX, y: e.clientY }),
+                                onMouseLeave: () =>
+                                  setHoverHelp((h) => (h?.wordId === w.id ? null : h)),
+                              }
+                            : {};
+                        return (
+                          <div
+                            className={`word ${animating(w.id) ? "animating" : ""} ${
+                              glow ? `glow-${glow}` : ""
+                            }`}
+                            key={w.id}
+                            {...hoverProps}
+                          >
+                            {helpOn && !isDesktop && (
+                              <button
+                                className="help-badge"
+                                aria-label="Show help for this word"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const el =
+                                    (e.currentTarget.closest(".word") as HTMLElement) ??
+                                    e.currentTarget;
+                                  const r = el.getBoundingClientRect();
+                                  setPinnedHelp((prev) =>
+                                    prev?.wordId === w.id
+                                      ? null
+                                      : {
+                                          wordId: w.id,
+                                          rect: {
+                                            top: r.top,
+                                            bottom: r.bottom,
+                                            left: r.left,
+                                            width: r.width,
+                                          },
+                                        },
+                                  );
+                                }}
+                              >
+                                ?
+                              </button>
+                            )}
+                            <span className="word-run">
+                              {w.tiles.map((t, i) => (
+                                <span key={t.id} className="tile-slot" style={{ animationDelay: `${i * 60}ms` }}>
+                                  <Tile
+                                    letter={t.letter}
+                                    small
+                                    used={isSelected(t.id)}
+                                    onTap={() => g.tapTile(t.id, t.letter, w.id)}
+                                  />
+                                </span>
+                              ))}
+                            </span>
+                            {challengeable(w.id) && (
+                              <button className="challenge-link" onClick={() => g.startChallenge(w.id)}>
+                                challenge
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -349,6 +428,26 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
           </div>
         )}
       </div>
+
+      {helpOn && isDesktop && hoverHelp && (() => {
+        const h = g.helpFor(hoverHelp.wordId);
+        const w = game.words.find((x) => x.id === hoverHelp.wordId);
+        return h && w ? (
+          <HelpTooltip x={hoverHelp.x} y={hoverHelp.y}>
+            <HelpCard word={w.text} help={h} />
+          </HelpTooltip>
+        ) : null;
+      })()}
+
+      {helpOn && !isDesktop && pinnedHelp && (() => {
+        const h = g.helpFor(pinnedHelp.wordId);
+        const w = game.words.find((x) => x.id === pinnedHelp.wordId);
+        return h && w ? (
+          <HelpPopover anchor={pinnedHelp.rect} onClose={() => setPinnedHelp(null)}>
+            <HelpCard word={w.text} help={h} />
+          </HelpPopover>
+        ) : null;
+      })()}
 
       {challengeWordObj && (
         <ChallengeModal

@@ -279,6 +279,16 @@ A solo mode focused on training and word discovery.
 - Reuses the same anagram index and steal-legality logic as the engine, so hints
   and gameplay never disagree.
 
+**Help Mode (shipped, solo only).** A live training aid toggled in settings or
+during the game. Hover a word (desktop) or tap its corner handle (mobile) to see
+its same-letter anagrams and its potential steals at +1, +2 and +3 letters
+(+3 only when there are no same-letter anagrams); entries formable from the
+current pool right now are highlighted. Every board word also glows: green when
+it is stealable now with pool letters, yellow when a legal steal is one letter,
+or two common letters (A E I O U S T D N G), away, and no glow otherwise. All
+suggestions respect the root rule, so only legal steals are shown. The desktop
+card never intercepts clicks, so tiles stay tappable while it is open.
+
 ---
 
 ## 7. Architecture
