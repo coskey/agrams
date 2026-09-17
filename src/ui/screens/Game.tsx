@@ -214,6 +214,16 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                   if (e.key === "Escape") g.clearPending();
                 }}
               />
+              {g.pending.length > 0 && (
+                <button
+                  className="btn secondary clear-btn"
+                  onClick={g.clearPending}
+                  aria-label="Clear the word"
+                  title="Clear"
+                >
+                  ✕
+                </button>
+              )}
               <button className="btn accent send" onClick={g.submit}>
                 Enter
               </button>

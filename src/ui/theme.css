@@ -283,7 +283,20 @@ button {
   }
   .board .left-col {
     position: sticky;
-    top: 76px;
+    top: calc(var(--topbar-h, 60px) + 12px);
+  }
+}
+
+/* On phones the pool pins right below the (possibly wrapped) top bar, so the
+   center pool and the bottom input bar are always on screen while words scroll. */
+@media (max-width: 899px) {
+  .board .left-col {
+    position: sticky;
+    top: var(--topbar-h, 60px);
+    z-index: 3;
+    background: var(--bg);
+    padding-top: 8px;
+    margin-top: -8px;
   }
 }
 
@@ -531,6 +544,11 @@ button {
   border-radius: 10px;
   padding: 12px 14px;
   white-space: nowrap;
+}
+.clear-btn {
+  border-radius: 10px;
+  padding: 12px 15px;
+  font-size: 15px;
 }
 .under-input {
   max-width: 1100px;
