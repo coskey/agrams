@@ -171,40 +171,57 @@ button {
 
 /* ---- Buttons ---- */
 
+/* All buttons share one resting look (outlined, no fill) and only fill — with
+   their own color — on hover, press, or tap. */
 .btn {
-  border: 1px solid var(--tile-border);
-  background: var(--fg);
-  color: var(--bg);
+  border: 1px solid var(--fg);
+  background: transparent;
+  color: var(--fg);
   border-radius: 999px;
   padding: 12px 22px;
   font-size: 15px;
   font-weight: 700;
+  transition: background 0.12s ease, color 0.12s ease;
 }
-.btn:hover {
-  opacity: 0.9;
+.btn:hover,
+.btn:active {
+  background: var(--fg);
+  color: var(--bg);
 }
 .btn.secondary {
-  background: var(--bg);
-  color: var(--fg);
+  /* same as the base button */
 }
 .btn.accent {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn.accent:hover,
+.btn.accent:active {
   background: var(--accent);
   color: var(--accent-fg);
-  border-color: var(--accent);
 }
 .btn.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.btn.danger:hover,
+.btn.danger:active {
   background: var(--danger);
   color: #fff;
-  border-color: var(--danger);
 }
 .btn.success {
+  border-color: var(--success);
+  color: var(--success);
+}
+.btn.success:hover,
+.btn.success:active {
   background: var(--success);
   color: #fff;
-  border-color: var(--success);
 }
 .btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* ---- Home ---- */
