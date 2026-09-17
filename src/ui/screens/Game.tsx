@@ -270,9 +270,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                   disabled={game.bag.length === 0}
                   title={isDesktop ? "Flip a tile (press 1)" : undefined}
                 >
-                  {g.firstFourArmed
-                    ? "Flip first four"
-                    : `Flip${game.bag.length > 0 ? ` (${game.bag.length})` : ""}`}
+                  {g.firstFourArmed ? "Flip first four" : "Flip"}
                 </button>
               )}
               <input
