@@ -56,15 +56,11 @@ function playersFor(mode: GameSettings["mode"]): Player[] {
 
 const START_COUNTDOWN_MS = 3000;
 
-/** Create the opening game state. In manual mode with the option on, the first
- *  four tiles are flipped immediately; in auto mode the opening tiles are dealt
- *  after the start countdown, so the pool begins empty. */
+/** Create the opening game state. The pool always begins empty: in auto mode the
+ *  opening tiles are dealt after the start countdown, and in manual mode the first
+ *  Flip press deals them (see the "Flip first four" button). */
 function makeStart(settings: GameSettings): GameState {
-  let g = createGame({ players: playersFor(settings.mode), settings });
-  if (settings.flipMode === "manual" && settings.startWithFourTiles) {
-    for (let i = 0; i < 4 && g.bag.length > 0; i++) g = flipNextTile(g);
-  }
-  return g;
+  return createGame({ players: playersFor(settings.mode), settings });
 }
 
 /** How long the bot waits before committing a found move: bounds come from the
@@ -107,6 +103,7 @@ export interface UseGame {
   paused: boolean;
   autoFlipRemainingMs: number | null;
   startCountdownSec: number | null;
+  firstFourArmed: boolean;
   lastWordEvent: LastWordEvent | null;
   setPending: (text: string) => void;
   tapTile: (tileId: number, letter: string, fromWordId?: number) => void;
@@ -140,11 +137,16 @@ export function useGame(
   const [paused, setPaused] = useState(false);
   const [autoFlipRemainingMs, setAutoFlipRemainingMs] = useState<number | null>(null);
   const [lastWordEvent, setLastWordEvent] = useState<LastWordEvent | null>(null);
+  const [firstFourArmed, setFirstFourArmed] = useState<boolean>(
+    () => initialSettings.flipMode === "manual" && initialSettings.startWithFourTiles,
+  );
 
   const gameRef = useRef(game);
   gameRef.current = game;
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
+  const firstFourRef = useRef(firstFourArmed);
+  firstFourRef.current = firstFourArmed;
 
   const botRng = useRef(makeRng(Math.floor(Math.random() * 2 ** 31)));
   const pendingBot = useRef<PendingBotMove | null>(null);
@@ -245,7 +247,18 @@ export function useGame(
 
   const flip = useCallback(() => {
     if (pausedRef.current) return;
-    setGame((gm) => flipNextTile(gm));
+    const n = firstFourRef.current ? 4 : 1;
+    if (firstFourRef.current) {
+      firstFourRef.current = false;
+      setFirstFourArmed(false);
+    }
+    setGame((gm) => {
+      let ng = gm;
+      for (let i = 0; i < n && ng.phase === "playing" && ng.bag.length > 0; i++) {
+        ng = flipNextTile(ng);
+      }
+      return ng;
+    });
   }, []);
 
   const startChallenge = useCallback((wordId: number) => setChallengeId(wordId), []);
@@ -283,6 +296,7 @@ export function useGame(
       const auto = settings.flipMode === "auto";
       countdownDeadline.current = auto ? Date.now() + START_COUNTDOWN_MS : 0;
       setStartCountdownSec(auto ? START_COUNTDOWN_MS / 1000 : null);
+      setFirstFourArmed(settings.flipMode === "manual" && settings.startWithFourTiles);
       setAutoFlipRemainingMs(null);
       botRng.current = makeRng(Math.floor(Math.random() * 2 ** 31));
     },
@@ -419,6 +433,7 @@ export function useGame(
     paused,
     autoFlipRemainingMs,
     startCountdownSec,
+    firstFourArmed,
     lastWordEvent,
     setPending,
     tapTile,

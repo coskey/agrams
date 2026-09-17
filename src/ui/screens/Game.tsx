@@ -133,8 +133,15 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
 
   return (
     <div className="app">
-      <TopBar themeMode={themeMode} onToggleTheme={onToggleTheme}>
-        <span className="chip">{game.settings.mode === "practice" ? "Practice" : `Bot · L${game.settings.difficultyLevel}`}</span>
+      <TopBar
+        themeMode={themeMode}
+        onToggleTheme={onToggleTheme}
+        leftSlot={
+          <span className="chip">
+            {game.settings.mode === "practice" ? "Solo" : `Bot · L${game.settings.difficultyLevel}`}
+          </span>
+        }
+      >
         {remainingSec !== null && (
           <span className="chip" aria-live="polite">
             ⏳ <span className="countdown">{remainingSec}s</span>
@@ -249,7 +256,9 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
             <div className="row">
               {game.settings.flipMode === "manual" && (
                 <button className="btn secondary flip-btn" onClick={g.flip} disabled={game.bag.length === 0}>
-                  Flip{game.bag.length > 0 ? ` (${game.bag.length})` : ""}
+                  {g.firstFourArmed
+                    ? "Flip first four"
+                    : `Flip${game.bag.length > 0 ? ` (${game.bag.length})` : ""}`}
                 </button>
               )}
               <input

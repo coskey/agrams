@@ -3,11 +3,12 @@ import { Wordmark } from "./Wordmark";
 
 interface Props {
   children?: ReactNode;
+  leftSlot?: ReactNode;
   themeMode: string;
   onToggleTheme: () => void;
 }
 
-export function TopBar({ children, onToggleTheme, themeMode }: Props) {
+export function TopBar({ children, leftSlot, onToggleTheme, themeMode }: Props) {
   const ref = useRef<HTMLElement>(null);
 
   // Publish the top bar's height so the pool can stick right below it, even as
@@ -26,6 +27,7 @@ export function TopBar({ children, onToggleTheme, themeMode }: Props) {
   return (
     <header className="topbar" ref={ref}>
       <Wordmark />
+      {leftSlot}
       <div className="spacer" />
       {children}
       <button
