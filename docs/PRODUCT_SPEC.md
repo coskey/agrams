@@ -13,7 +13,7 @@ is the reference we will code against, and it will evolve as decisions get made.
 - v0.1: initial draft.
 - v0.2: word claims are **auto-validated** against the word list in Phase 1;
   classic social/trust play moves to Phase 2. Tile bag is **Bananagrams (144
-  tiles, no blanks)**. Word list is **ENABLE**; the bot uses a restricted
+  tiles, no blanks)**. Word list is the **NWL2023 ∪ CSW21** union; the bot uses a restricted
   common-word vocabulary. Front-end is **React + TypeScript + Vite**, static
   deploy for Phase 1. Visual style is **NYT-Games-style minimalist black & white
   with light and dark mode** (replaces the earlier warm-brown direction). Still
@@ -171,16 +171,19 @@ keyboard; mobile uses touch.
 
 ## 4. Word list and validation
 
-- **ENABLE** is the bundled, offline source of truth for validity (open,
-  public-domain, ~172k words; freely redistributable, unlike Collins/SOWPODS).
-  No network lookups at play time.
+- The bundled, offline source of truth for validity is the **union of the two
+  tournament word lists**: **NWL2023** (North American / NASPA, the successor to
+  TWL) and **CSW21** (Collins). A word is valid if it appears in either list
+  (~283k words total). No network lookups at play time.
+  - Note: these lists are copyrighted by their publishers; they are bundled here
+    from publicly-circulated copies for this project.
 - The list is preprocessed into an **anagram index**: a map from sorted-letter
   key to the set of words with those letters, making "what can these letters
   form" and steal-finding fast.
-- The **bot's playable vocabulary** is a subset of ENABLE filtered by a
+- The **bot's playable vocabulary** is a subset of the dictionary filtered by a
   **common-word frequency list**, so the bot plays words a person would know.
-- Proper nouns, hyphenated words, and abbreviations are excluded (ENABLE already
-  excludes them).
+- Proper nouns, hyphenated words, and abbreviations are excluded (both source
+  lists already exclude them).
 
 ---
 
@@ -301,7 +304,7 @@ A solo mode focused on training and word discovery.
 ## 8. Delivery phases
 
 **Phase 1 — Single-player vs. the bot (first release).**
-Client-only React app. Engine, ENABLE word list and anagram index, strict steal
+Client-only React app. Engine, the NWL2023 ∪ CSW21 word list and anagram index, strict steal
 rule, auto-validation of claims, medium bot with restricted vocabulary, manual
 challenge/override, typing and tapping input, Bananagrams bag, minimalist B&W
 light/dark UI, and the first-run tutorial.
@@ -357,7 +360,7 @@ Resolved items are struck through; the rest still need answers.
 10. ~~Bot challenging the human.~~ No in Phase 1; only the human challenges.
 
 **Word list**
-11. ~~List choice.~~ ENABLE. (Any custom additions/removals?)
+11. ~~List choice.~~ Union of NWL2023 (NASPA/TWL) and CSW21 (Collins). (Any custom additions/removals?)
 
 **Look and tech**
 12. ~~Exact screenshot match vs. direction.~~ NYT-Games-style B&W, light + dark.

@@ -1,5 +1,8 @@
 // Loads the bundled word data and builds the rules (validation dictionary +
 // root detection) plus the bot's common-word vocabulary. Runs once at startup.
+// The validation dictionary is the union of the two tournament word lists:
+// NWL2023 (North American / NASPA-TWL) and CSW21 (Collins). A word is valid if
+// it appears in either list.
 
 import { Dictionary, buildVocabulary, type VocabEntry } from "../engine/dictionary";
 import { buildMorphology } from "../engine/morphology";
@@ -22,13 +25,13 @@ export async function loadGameData(): Promise<GameData> {
     return r.text();
   };
 
-  const [enableText, commonText, inflText] = await Promise.all([
-    get("words/enable.txt"),
+  const [wordsText, commonText, inflText] = await Promise.all([
+    get("words/words.txt"),
     get("words/common.txt"),
     get("words/inflections.txt"),
   ]);
 
-  const dictionary = new Dictionary(splitWords(enableText));
+  const dictionary = new Dictionary(splitWords(wordsText));
   const morphology = buildMorphology(splitWords(inflText), dictionary);
   const vocab = buildVocabulary(splitWords(commonText), dictionary);
   return { rules: { dictionary, morphology }, vocab };
