@@ -366,8 +366,10 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                     <div className="player-words">
                       {words.map((w) => {
                         const glow = helpOn ? g.wordGlows.get(w.id) : undefined;
+                        // Only glowing words (an achievable or near steal) show
+                        // suggestions; others aren't interactive.
                         const hoverProps =
-                          helpOn && isDesktop
+                          helpOn && isDesktop && glow
                             ? {
                                 onMouseEnter: (e: MouseEvent) =>
                                   setHoverHelp({ wordId: w.id, x: e.clientX, y: e.clientY }),
@@ -378,7 +380,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                               }
                             : {};
                         const touchProps =
-                          helpOn && !isDesktop
+                          helpOn && !isDesktop && glow
                             ? {
                                 onTouchStart: (e: TouchEvent<HTMLDivElement>) => {
                                   const touch = e.touches[0];
@@ -519,7 +521,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
       {helpOn && isDesktop && hoverHelp && (() => {
         const h = g.helpFor(hoverHelp.wordId);
         const w = game.words.find((x) => x.id === hoverHelp.wordId);
-        return h && w ? (
+        return h && w && g.wordGlows.get(hoverHelp.wordId) ? (
           <HelpTooltip x={hoverHelp.x} y={hoverHelp.y}>
             <HelpCard word={w.text} help={h} />
           </HelpTooltip>
@@ -544,7 +546,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
       {helpOn && !isDesktop && pinnedHelp && (() => {
         const h = g.helpFor(pinnedHelp.wordId);
         const w = game.words.find((x) => x.id === pinnedHelp.wordId);
-        return h && w ? (
+        return h && w && g.wordGlows.get(pinnedHelp.wordId) ? (
           <HelpPopover anchor={pinnedHelp.rect} onClose={() => setPinnedHelp(null)}>
             <HelpCard word={w.text} help={h} />
           </HelpPopover>
