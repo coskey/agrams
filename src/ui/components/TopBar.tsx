@@ -6,9 +6,11 @@ interface Props {
   leftSlot?: ReactNode;
   themeMode: string;
   onToggleTheme: () => void;
+  onLogoClick?: () => void;
+  endgame?: boolean;
 }
 
-export function TopBar({ children, leftSlot, onToggleTheme, themeMode }: Props) {
+export function TopBar({ children, leftSlot, onToggleTheme, themeMode, onLogoClick, endgame }: Props) {
   const ref = useRef<HTMLElement>(null);
 
   // Publish the top bar's height so the pool can stick right below it, even as
@@ -25,8 +27,14 @@ export function TopBar({ children, leftSlot, onToggleTheme, themeMode }: Props) 
   }, []);
 
   return (
-    <header className="topbar" ref={ref}>
-      <Wordmark />
+    <header className={`topbar${endgame ? " topbar--endgame" : ""}`} ref={ref}>
+      {onLogoClick ? (
+        <button className="logo-btn" onClick={onLogoClick} aria-label="Go to home screen">
+          <Wordmark />
+        </button>
+      ) : (
+        <Wordmark />
+      )}
       {leftSlot}
       <div className="spacer" />
       {children}

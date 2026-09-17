@@ -169,10 +169,12 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
       <TopBar
         themeMode={themeMode}
         onToggleTheme={onToggleTheme}
+        onLogoClick={onExit}
+        endgame={remainingSec !== null}
         leftSlot={
-          <span className="chip">
-            {game.settings.mode === "practice" ? "Solo" : `Bot · L${game.settings.difficultyLevel}`}
-          </span>
+          game.settings.mode === "practice" ? undefined : (
+            <span className="chip mode-chip">Bot · L{game.settings.difficultyLevel}</span>
+          )
         }
       >
         {remainingSec !== null && (
@@ -187,7 +189,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
         )}
         {!ended && (
           <button className="icon-btn" onClick={g.endNow}>
-            End game
+            End
           </button>
         )}
         {ended && (
