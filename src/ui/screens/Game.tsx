@@ -31,6 +31,7 @@ const DOT_COLORS: Record<string, string> = {
 };
 
 const CHALLENGE_WINDOW_MS = 5000;
+const HELP_TIP_KEY = "agrams:helpTipSeen";
 
 export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme }: Props) {
   const g = useGame(rules, vocab, settings);
@@ -49,6 +50,17 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
   const longPressTimer = useRef<number | null>(null);
   const longPressStart = useRef<{ x: number; y: number } | null>(null);
   const suppressTap = useRef(false);
+  // One-time mobile coaching tip shown under the first glowing word.
+  const [hintWordId, setHintWordId] = useState<number | null>(null);
+  const hintSeen = useRef<boolean>(false);
+  const persistHintSeen = () => {
+    hintSeen.current = true;
+    try {
+      localStorage.setItem(HELP_TIP_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  };
   const cancelLongPress = () => {
     if (longPressTimer.current !== null) {
       window.clearTimeout(longPressTimer.current);
@@ -112,6 +124,33 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
     if (pinnedHelp && !game.words.some((w) => w.id === pinnedHelp.wordId)) setPinnedHelp(null);
   }, [game.words, pinnedHelp]);
 
+  // Load the "tip already seen" flag once.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(HELP_TIP_KEY) === "1") hintSeen.current = true;
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // Mobile only: the first time a word glows in help mode, show a "press and
+  // hold" tip under it. It fades after 10s or when the player long-presses.
+  useEffect(() => {
+    if (!(helpOn && !isDesktop) || hintSeen.current || hintWordId !== null) return;
+    const glowWord = game.words.find((w) => g.wordGlows.get(w.id));
+    if (glowWord) {
+      setHintWordId(glowWord.id);
+      persistHintSeen();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [helpOn, isDesktop, game.words, g.wordGlows, hintWordId]);
+
+  useEffect(() => {
+    if (hintWordId === null) return;
+    const t = setTimeout(() => setHintWordId(null), 10000);
+    return () => clearTimeout(t);
+  }, [hintWordId]);
+
   const [clock, setClock] = useState(() => Date.now());
   const seenRef = useRef<Map<number, number>>(new Map());
   useEffect(() => {
@@ -125,7 +164,9 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
     return () => clearInterval(t);
   }, []);
   const ageOf = (wordId: number) => clock - (seenRef.current.get(wordId) ?? clock);
-  const challengeable = (wordId: number) => !ended && ageOf(wordId) < CHALLENGE_WINDOW_MS;
+  // Challenges are for multiplayer trust; there's nothing to dispute in solo.
+  const challengeable = (wordId: number) =>
+    !ended && game.settings.mode !== "practice" && ageOf(wordId) < CHALLENGE_WINDOW_MS;
   const animating = (wordId: number) => ageOf(wordId) < MOVE_ANIM_MS;
 
   // Enter submits the pending word (typed or tapped) even when the input isn't
@@ -325,6 +366,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                                   longPressTimer.current = window.setTimeout(() => {
                                     const r = el.getBoundingClientRect();
                                     suppressTap.current = true;
+                                    setHintWordId(null);
                                     setPinnedHelp({
                                       wordId: w.id,
                                       rect: { top: r.top, bottom: r.bottom, left: r.left, width: r.width },
@@ -374,6 +416,9 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                               <button className="challenge-link" onClick={() => g.startChallenge(w.id)}>
                                 challenge
                               </button>
+                            )}
+                            {hintWordId === w.id && (
+                              <div className="help-hint-tip">press and hold to see suggestions</div>
                             )}
                           </div>
                         );

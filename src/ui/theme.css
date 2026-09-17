@@ -1049,8 +1049,32 @@ button {
 /* Long-press a word for help on touch devices: stop the native text-selection
    callout so the hold shows suggestions instead. */
 .player-words .word {
+  position: relative;
   -webkit-touch-callout: none;
   user-select: none;
+}
+/* One-time "press and hold" coaching tip, tucked under a glowing word. */
+.help-hint-tip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+  animation: help-tip-fade 10s ease forwards;
+}
+@keyframes help-tip-fade {
+  0%,
+  86% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* The floating suggestion card (desktop tooltip + mobile popover). */
