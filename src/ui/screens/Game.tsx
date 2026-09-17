@@ -96,6 +96,12 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
       }
       // Desktop only: type letters without focusing the box, and backspace.
       if (!isDesktop || e.metaKey || e.ctrlKey || e.altKey) return;
+      // Manual flip: pressing "1" flips the next tile (like the Flip button).
+      if (e.key === "1" && game.settings.flipMode === "manual" && game.bag.length > 0) {
+        e.preventDefault();
+        g.flip();
+        return;
+      }
       if (e.key === "Backspace") {
         if (g.pending.length > 0) {
           e.preventDefault();
@@ -120,6 +126,9 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
     g.clearPending,
     g.backspace,
     g.appendLetter,
+    g.flip,
+    game.settings.flipMode,
+    game.bag.length,
   ]);
 
   const openFeedback = () => {
@@ -255,7 +264,12 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
           <div className="inputbar">
             <div className="row">
               {game.settings.flipMode === "manual" && (
-                <button className="btn secondary flip-btn" onClick={g.flip} disabled={game.bag.length === 0}>
+                <button
+                  className="btn secondary flip-btn"
+                  onClick={g.flip}
+                  disabled={game.bag.length === 0}
+                  title={isDesktop ? "Flip a tile (press 1)" : undefined}
+                >
                   {g.firstFourArmed
                     ? "Flip first four"
                     : `Flip${game.bag.length > 0 ? ` (${game.bag.length})` : ""}`}

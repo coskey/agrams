@@ -20,7 +20,7 @@ export function Home({ onPlay, onPractice, onHowToPlay, themeMode, onToggleTheme
             Play vs. Computer
           </button>
           <button className="btn secondary" onClick={onPractice}>
-            Practice (solo)
+            Solo practice
           </button>
           <button className="btn secondary" onClick={onHowToPlay}>
             How to play

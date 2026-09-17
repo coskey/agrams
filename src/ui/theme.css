@@ -137,6 +137,12 @@ button {
   color: var(--tile-fg);
   box-shadow: var(--shadow);
 }
+.logo-glyph {
+  display: block;
+  /* Optically center the lowercase "a": its glyph sits slightly high in the
+     em box, so nudge it down a hair. */
+  transform: translateY(0.06em);
+}
 .wordmark.hero {
   font-size: clamp(40px, 12vw, 60px);
   margin-bottom: 4px;
