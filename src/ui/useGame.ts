@@ -336,6 +336,29 @@ export function useGame(
     return () => clearInterval(timer);
   }, []);
 
+  // If another player consumes a tile you've tapped for your pending word (a pool
+  // tile they claimed/stole, or a word you were stealing that they took first),
+  // the selection is stale — clear the entry and deselect the tiles.
+  useEffect(() => {
+    if (selectedTileIds.size === 0) return;
+    const available = new Set<number>();
+    for (const t of game.pool) available.add(t.id);
+    for (const w of game.words) {
+      if (sourceIds.has(w.id)) for (const t of w.tiles) available.add(t.id);
+    }
+    let stale = false;
+    for (const id of selectedTileIds) {
+      if (!available.has(id)) {
+        stale = true;
+        break;
+      }
+    }
+    if (stale) {
+      clearPending();
+      setFeedback({ text: "Those letters were taken — entry cleared.", kind: "error" });
+    }
+  }, [game, selectedTileIds, sourceIds, clearPending, setFeedback]);
+
   return {
     game,
     feedback,
