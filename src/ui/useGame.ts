@@ -190,11 +190,13 @@ export function useGame(
 
   const tapTile = useCallback(
     (tileId: number, letter: string, fromWordId?: number) => {
-      setSlots((prev) =>
-        prev.some((s) => s.tileId === tileId)
-          ? prev
-          : [...prev, { letter: letter.toUpperCase(), tileId, wordId: fromWordId }],
-      );
+      // Tapping a tile adds its letter; tapping it again removes that letter
+      // from the word being built (a toggle).
+      setSlots((prev) => {
+        const idx = prev.findIndex((s) => s.tileId === tileId);
+        if (idx !== -1) return prev.filter((_, i) => i !== idx);
+        return [...prev, { letter: letter.toUpperCase(), tileId, wordId: fromWordId }];
+      });
     },
     [],
   );

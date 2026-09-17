@@ -434,10 +434,7 @@ button {
 }
 .tile.used {
   opacity: 0.28;
-  cursor: default;
-}
-.tile.used:hover {
-  transform: none;
+  cursor: pointer;
 }
 @keyframes tile-in {
   from {

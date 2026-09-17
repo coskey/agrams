@@ -16,13 +16,15 @@ export function Tile({ letter, small, used, onTap }: TileProps) {
     .join(" ");
 
   if (onTap) {
+    // A selected ("used") tile stays tappable so tapping it again removes that
+    // letter from the word being built.
     return (
       <button
         type="button"
         className={cls}
-        onClick={used ? undefined : onTap}
+        onClick={onTap}
         aria-label={`Letter ${letter}`}
-        aria-disabled={used}
+        aria-pressed={used}
       >
         {letter}
       </button>
