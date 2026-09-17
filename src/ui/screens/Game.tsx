@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react";
 import {
   playerScore,
   allScores,
@@ -43,6 +43,18 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
     wordId: number;
     rect: { top: number; bottom: number; left: number; width: number };
   } | null>(null);
+  const pinnedHelpRef = useRef(pinnedHelp);
+  pinnedHelpRef.current = pinnedHelp;
+  // Mobile long-press to open a word's help; suppress the tap that follows it.
+  const longPressTimer = useRef<number | null>(null);
+  const longPressStart = useRef<{ x: number; y: number } | null>(null);
+  const suppressTap = useRef(false);
+  const cancelLongPress = () => {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
 
   const scores = useMemo(() => allScores(game), [game]);
   const remainingSec =
@@ -301,6 +313,34 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                                   setHoverHelp((h) => (h?.wordId === w.id ? null : h)),
                               }
                             : {};
+                        const touchProps =
+                          helpOn && !isDesktop
+                            ? {
+                                onTouchStart: (e: TouchEvent<HTMLDivElement>) => {
+                                  const touch = e.touches[0];
+                                  longPressStart.current = { x: touch.clientX, y: touch.clientY };
+                                  suppressTap.current = false;
+                                  const el = e.currentTarget;
+                                  cancelLongPress();
+                                  longPressTimer.current = window.setTimeout(() => {
+                                    const r = el.getBoundingClientRect();
+                                    suppressTap.current = true;
+                                    setPinnedHelp({
+                                      wordId: w.id,
+                                      rect: { top: r.top, bottom: r.bottom, left: r.left, width: r.width },
+                                    });
+                                  }, 400);
+                                },
+                                onTouchMove: (e: TouchEvent<HTMLDivElement>) => {
+                                  const s = longPressStart.current;
+                                  if (!s) return;
+                                  const t = e.touches[0];
+                                  if (Math.hypot(t.clientX - s.x, t.clientY - s.y) > 10) cancelLongPress();
+                                },
+                                onTouchEnd: cancelLongPress,
+                                onTouchCancel: cancelLongPress,
+                              }
+                            : {};
                         return (
                           <div
                             className={`word ${animating(w.id) ? "animating" : ""} ${
@@ -308,35 +348,8 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                             }`}
                             key={w.id}
                             {...hoverProps}
+                            {...touchProps}
                           >
-                            {helpOn && !isDesktop && (
-                              <button
-                                className="help-badge"
-                                aria-label="Show help for this word"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const el =
-                                    (e.currentTarget.closest(".word") as HTMLElement) ??
-                                    e.currentTarget;
-                                  const r = el.getBoundingClientRect();
-                                  setPinnedHelp((prev) =>
-                                    prev?.wordId === w.id
-                                      ? null
-                                      : {
-                                          wordId: w.id,
-                                          rect: {
-                                            top: r.top,
-                                            bottom: r.bottom,
-                                            left: r.left,
-                                            width: r.width,
-                                          },
-                                        },
-                                  );
-                                }}
-                              >
-                                ?
-                              </button>
-                            )}
                             <span className="word-run">
                               {w.tiles.map((t, i) => (
                                 <span key={t.id} className="tile-slot" style={{ animationDelay: `${i * 60}ms` }}>
@@ -344,7 +357,15 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                                     letter={t.letter}
                                     small
                                     used={isSelected(t.id)}
-                                    onTap={() => g.tapTile(t.id, t.letter, w.id)}
+                                    onTap={() => {
+                                      // A long-press (or an open help popover) means this
+                                      // tap is for help, not tile selection.
+                                      if (helpOn && !isDesktop && (suppressTap.current || pinnedHelpRef.current)) {
+                                        suppressTap.current = false;
+                                        return;
+                                      }
+                                      g.tapTile(t.id, t.letter, w.id);
+                                    }}
                                   />
                                 </span>
                               ))}
