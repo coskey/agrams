@@ -82,7 +82,6 @@ export function Tutorial({ onDone }: Props) {
         <button className="modal-close" onClick={onDone} aria-label="Close">
           ✕
         </button>
-        <div className="steps">Step {i + 1} of {STEPS.length}</div>
         <h2>{step.title}</h2>
         <p className="tutorial-body">{step.body}</p>
         <div className="modal-actions">
