@@ -742,6 +742,29 @@ button {
   align-items: center;
   gap: 12px;
 }
+.bubbles {
+  display: inline-flex;
+  gap: 8px;
+}
+.bubble {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--fg);
+  font-weight: 700;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.bubble:hover {
+  border-color: var(--fg);
+}
+.bubble.active {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+}
 .stepper button {
   width: 34px;
   height: 34px;

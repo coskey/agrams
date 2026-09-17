@@ -30,12 +30,6 @@ export function SettingsModal({
       ),
     }));
 
-  const setDifficulty = (delta: number) =>
-    setS((cur) => ({
-      ...cur,
-      difficultyLevel: Math.min(5, Math.max(1, cur.difficultyLevel + delta)),
-    }));
-
   const setEndgame = (delta: number) =>
     setS((cur) => ({
       ...cur,
@@ -85,14 +79,19 @@ export function SettingsModal({
         {s.mode === "vs-computer" && (
           <div className="field">
             <label>Difficulty</label>
-            <div className="stepper">
-              <button type="button" onClick={() => setDifficulty(-1)} aria-label="Decrease difficulty">
-                −
-              </button>
-              <span className="val">{s.difficultyLevel}</span>
-              <button type="button" onClick={() => setDifficulty(1)} aria-label="Increase difficulty">
-                +
-              </button>
+            <div className="bubbles" role="group" aria-label="Difficulty level">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`bubble ${s.difficultyLevel === n ? "active" : ""}`}
+                  aria-pressed={s.difficultyLevel === n}
+                  aria-label={`Level ${n}`}
+                  onClick={() => setS((c) => ({ ...c, difficultyLevel: n }))}
+                >
+                  {n}
+                </button>
+              ))}
             </div>
             <span className="hint">
               1 = easiest, 5 = hardest.{" "}
