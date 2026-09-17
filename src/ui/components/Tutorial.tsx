@@ -79,13 +79,22 @@ export function Tutorial({ onDone }: Props) {
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="How to play">
       <div className="modal tutorial-modal">
+        <button className="modal-close" onClick={onDone} aria-label="Close">
+          ✕
+        </button>
         <div className="steps">Step {i + 1} of {STEPS.length}</div>
         <h2>{step.title}</h2>
         <p className="tutorial-body">{step.body}</p>
         <div className="modal-actions">
-          <button className="btn secondary" onClick={onDone}>
-            Skip
-          </button>
+          {i === 0 ? (
+            <button className="btn secondary" onClick={onDone}>
+              Skip
+            </button>
+          ) : (
+            <button className="btn secondary" onClick={() => setI((n) => n - 1)}>
+              Back
+            </button>
+          )}
           {last ? (
             <button className="btn" onClick={onDone}>
               Play

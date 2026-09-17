@@ -824,6 +824,22 @@ button {
 /* Tutorial */
 .tutorial-modal {
   max-width: 480px;
+  position: relative;
+}
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+.modal-close:hover {
+  color: var(--fg);
 }
 .tutorial-modal .steps {
   color: var(--muted);
