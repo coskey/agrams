@@ -76,8 +76,8 @@ const STEPS: Step[] = [
     body: (
       <>
         A word scores 1 point at the minimum length, plus 1 for each extra letter.
-        With the default 4-letter minimum that's 4 letters = 1 point, 5 = 2, 6 = 3.
-        Steal a word and its points come with it.
+        For example, with a 4-letter minimum, each word with 4 letters is one
+        point. A 5 letter word is two points, a 6 letter word is 3 points, etc.
       </>
     ),
   },
