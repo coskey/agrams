@@ -222,8 +222,10 @@ export function useGame(
       const m = result.move;
       if (m.kind === "steal") {
         const src = g.words.find((w) => w.id === m.sourceWordId);
-        setLastWordEvent({ original: src?.text ?? "", created: m.text, outcome: "steal" });
-        setFeedback({ text: `Stole "${m.text}"`, kind: "ok" });
+        const old = src?.text ?? "";
+        setLastWordEvent({ original: old, created: m.text, outcome: "steal" });
+        const verb = src?.ownerId === YOU_ID ? "Made" : "Stole";
+        setFeedback({ text: `${verb} "${m.text}" from "${old}"`, kind: "ok" });
       } else {
         setLastWordEvent({ original: "", created: m.text, outcome: "claim" });
         setFeedback({ text: `Claimed "${m.text}"`, kind: "ok" });
