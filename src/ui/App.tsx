@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { loadGameData, type GameData } from "../data/load";
 import { DEFAULT_SETTINGS, type GameSettings, type GameMode } from "../engine";
 import { useTheme } from "./useTheme";
@@ -99,6 +100,7 @@ export function App() {
       )}
 
       {showTutorial && <Tutorial onDone={markTutorialSeen} />}
+      <Analytics />
     </>
   );
 }
