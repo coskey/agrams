@@ -138,8 +138,9 @@ export function SettingsModal({
             </button>
           </div>
           <span className="hint">
-            Starts when the last tile is flipped. Each steal adds{" "}
-            {s.stealBonusSeconds}s, capped at {s.endgameSeconds}s.
+            Starts when the last tile is flipped.
+            <br />
+            Each steal adds {s.stealBonusSeconds}s, capped at {s.endgameSeconds}s.
           </span>
         </div>
 

@@ -31,6 +31,14 @@ export interface LastWordEvent {
   outcome: "steal" | "claim" | "rejected";
 }
 
+/** One tapped tile while composing a word: the tile, its letter, and (if it came
+ *  from an existing word) that word's id, so a steal source can be inferred. */
+interface TapEntry {
+  tileId: number;
+  letter: string;
+  wordId?: number;
+}
+
 export const YOU_ID = "you";
 export const BOT_ID = "bot";
 
@@ -88,6 +96,7 @@ export interface UseGame {
   setPending: (text: string) => void;
   tapTile: (tileId: number, letter: string, fromWordId?: number) => void;
   clearPending: () => void;
+  backspace: () => void;
   submit: () => void;
   flip: () => void;
   startChallenge: (wordId: number) => void;
@@ -109,8 +118,7 @@ export function useGame(
   );
   const [feedback, setFeedbackState] = useState<Feedback | null>(null);
   const [pending, setPendingState] = useState("");
-  const [selectedTileIds, setSelectedTileIds] = useState<Set<number>>(new Set());
-  const [sourceIds, setSourceIds] = useState<Set<number>>(new Set());
+  const [taps, setTaps] = useState<TapEntry[]>([]);
   const [challengeId, setChallengeId] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
   const [autoFlipRemainingMs, setAutoFlipRemainingMs] = useState<number | null>(null);
@@ -145,43 +153,45 @@ export function useGame(
     return () => clearTimeout(t);
   }, [feedback]);
 
+  // Selection derived from the ordered tap list (for dimming used tiles).
+  const selectedTileIds = new Set(taps.map((t) => t.tileId));
+
   const setPending = useCallback((text: string) => {
+    // Manual typing invalidates the tap-to-tile mapping.
     setPendingState(text);
-    setSelectedTileIds(new Set());
-    setSourceIds(new Set());
+    setTaps([]);
   }, []);
 
   const clearPending = useCallback(() => {
     setPendingState("");
-    setSelectedTileIds(new Set());
-    setSourceIds(new Set());
+    setTaps([]);
   }, []);
 
   const tapTile = useCallback(
     (tileId: number, letter: string, fromWordId?: number) => {
-      setSelectedTileIds((prev) => {
-        if (prev.has(tileId)) return prev;
-        const next = new Set(prev);
-        next.add(tileId);
-        return next;
-      });
+      setTaps((prev) =>
+        prev.some((t) => t.tileId === tileId)
+          ? prev
+          : [...prev, { tileId, letter, wordId: fromWordId }],
+      );
       setPendingState((p) => p + letter.toUpperCase());
-      if (fromWordId !== undefined) {
-        setSourceIds((prev) => {
-          const next = new Set(prev);
-          next.add(fromWordId);
-          return next;
-        });
-      }
     },
     [],
   );
+
+  const backspace = useCallback(() => {
+    setPendingState((p) => p.slice(0, -1));
+    setTaps((prev) => prev.slice(0, -1));
+  }, []);
 
   const submit = useCallback(() => {
     const text = pending.trim();
     if (text.length === 0) return;
     const g = gameRef.current;
-    const preferSourceWordId = sourceIds.size === 1 ? [...sourceIds][0] : undefined;
+    const srcs = new Set(
+      taps.filter((t) => t.wordId !== undefined).map((t) => t.wordId as number),
+    );
+    const preferSourceWordId = srcs.size === 1 ? [...srcs][0] : undefined;
     const result = attemptWord(g, rules, YOU_ID, text, { preferSourceWordId });
     if (result.ok) {
       setGame(result.state);
@@ -210,7 +220,7 @@ export function useGame(
     }
     // Clear the entry box after every attempt.
     clearPending();
-  }, [pending, sourceIds, rules, clearPending, setFeedback]);
+  }, [pending, taps, rules, clearPending, setFeedback]);
 
   const flip = useCallback(() => {
     if (pausedRef.current) return;
@@ -340,24 +350,21 @@ export function useGame(
   // tile they claimed/stole, or a word you were stealing that they took first),
   // the selection is stale — clear the entry and deselect the tiles.
   useEffect(() => {
-    if (selectedTileIds.size === 0) return;
+    if (taps.length === 0) return;
+    const wordIds = new Set(
+      taps.filter((t) => t.wordId !== undefined).map((t) => t.wordId as number),
+    );
     const available = new Set<number>();
     for (const t of game.pool) available.add(t.id);
     for (const w of game.words) {
-      if (sourceIds.has(w.id)) for (const t of w.tiles) available.add(t.id);
+      if (wordIds.has(w.id)) for (const t of w.tiles) available.add(t.id);
     }
-    let stale = false;
-    for (const id of selectedTileIds) {
-      if (!available.has(id)) {
-        stale = true;
-        break;
-      }
-    }
+    const stale = taps.some((t) => !available.has(t.tileId));
     if (stale) {
       clearPending();
       setFeedback({ text: "Those letters were taken — entry cleared.", kind: "error" });
     }
-  }, [game, selectedTileIds, sourceIds, clearPending, setFeedback]);
+  }, [game, taps, clearPending, setFeedback]);
 
   return {
     game,
@@ -371,6 +378,7 @@ export function useGame(
     setPending,
     tapTile,
     clearPending,
+    backspace,
     submit,
     flip,
     startChallenge,

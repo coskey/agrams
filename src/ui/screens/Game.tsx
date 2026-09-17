@@ -72,6 +72,24 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
     if (window.matchMedia("(min-width: 900px)").matches) inputRef.current?.focus();
   }, []);
 
+  // Enter submits the pending word (typed or tapped) even when the input isn't
+  // focused, e.g. after tapping tiles; Escape clears it. Ignored while a modal
+  // is open or the game is over.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (ended || g.paused || showSettings || showFeedback || g.challengeId !== null) return;
+      if (e.key === "Enter" && g.pending.trim().length > 0) {
+        e.preventDefault();
+        g.submit();
+      } else if (e.key === "Escape" && g.pending.length > 0) {
+        e.preventDefault();
+        g.clearPending();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [ended, showSettings, showFeedback, g.paused, g.challengeId, g.pending, g.submit, g.clearPending]);
+
   const openFeedback = () => {
     g.pause();
     setShowFeedback(true);
@@ -209,20 +227,26 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                 spellCheck={false}
                 aria-label="Word entry"
                 onChange={(e) => g.setPending(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") g.submit();
-                  if (e.key === "Escape") g.clearPending();
-                }}
               />
               {g.pending.length > 0 && (
-                <button
-                  className="btn secondary clear-btn"
-                  onClick={g.clearPending}
-                  aria-label="Clear the word"
-                  title="Clear"
-                >
-                  ✕
-                </button>
+                <>
+                  <button
+                    className="btn secondary clear-btn"
+                    onClick={g.backspace}
+                    aria-label="Backspace"
+                    title="Backspace"
+                  >
+                    ◀
+                  </button>
+                  <button
+                    className="btn secondary clear-btn"
+                    onClick={g.clearPending}
+                    aria-label="Clear the word"
+                    title="Clear"
+                  >
+                    ✕
+                  </button>
+                </>
               )}
               <button className="btn accent send" onClick={g.submit}>
                 Enter
@@ -287,7 +311,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
         <Results
           scores={scores}
           names={Object.fromEntries(game.players.map((p) => [p.id, p.name]))}
-          onPlayAgain={() => setShowSettings(true)}
+          onPlayAgain={() => g.newGame(game.settings)}
           onExit={onExit}
         />
       )}
