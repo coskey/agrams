@@ -94,8 +94,7 @@ export function SettingsModal({
               ))}
             </div>
             <span className="hint">
-              1 = easiest, 5 = hardest.{" "}
-              {["", "Very easy", "Easy", "Medium", "Hard", "Very hard"][s.difficultyLevel]}
+              {["", "Easy", "Decent", "Challenging", "Hard", "Insane"][s.difficultyLevel]}
             </span>
           </div>
         )}
