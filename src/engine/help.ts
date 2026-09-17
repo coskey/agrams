@@ -6,7 +6,7 @@
 
 import type { Dictionary } from "./dictionary";
 import type { Morphology } from "./morphology";
-import { lettersToCounts, ALPHABET_SIZE } from "./letters";
+import { lettersToCounts, countsContain, ALPHABET_SIZE } from "./letters";
 
 const CODE_A = 65;
 
@@ -73,11 +73,14 @@ export interface AnalyzeHelpOptions {
 
 /**
  * Analyze one board word: its anagrams, its +1/+2/+3 legal steals, and its glow.
- * `poolCounts` is a 26-length letter-count array for the current pool.
+ * `poolCounts` is the current pool; `supplyCounts` is every letter still in play
+ * (pool + bag). A steal whose extra letters can't be sourced from the remaining
+ * supply is impossible, so it is dropped entirely (and can't drive the glow).
  */
 export function analyzeHelp(
   word: string,
   poolCounts: number[],
+  supplyCounts: number[],
   dictionary: Dictionary,
   morphology: Morphology,
   options?: AnalyzeHelpOptions,
@@ -102,6 +105,8 @@ export function analyzeHelp(
     for (const combo of letterMultisets(k)) {
       extraCounts.fill(0);
       for (const i of combo) extraCounts[i]++;
+      // Impossible if the extra letters aren't among the remaining tiles.
+      if (!countsContain(supplyCounts, extraCounts)) continue;
       for (let i = 0; i < ALPHABET_SIZE; i++) combined[i] = wc[i] + extraCounts[i];
       const hits = index.get(keyFromCounts(combined));
       if (!hits) continue;

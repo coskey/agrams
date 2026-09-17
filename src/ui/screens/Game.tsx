@@ -50,8 +50,12 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
   const longPressTimer = useRef<number | null>(null);
   const longPressStart = useRef<{ x: number; y: number } | null>(null);
   const suppressTap = useRef(false);
-  // One-time mobile coaching tip shown under the first glowing word.
+  // One-time mobile coaching tip shown near the first glowing word. Rendered as
+  // a fixed overlay (measured from the word) so the scroll area can't clip it.
   const [hintWordId, setHintWordId] = useState<number | null>(null);
+  const [hintRect, setHintRect] = useState<{ left: number; top: number; bottom: number } | null>(
+    null,
+  );
   const hintSeen = useRef<boolean>(false);
   const persistHintSeen = () => {
     hintSeen.current = true;
@@ -59,6 +63,13 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
       localStorage.setItem(HELP_TIP_KEY, "1");
     } catch {
       /* ignore */
+    }
+  };
+  const measureHint = (id: number) => {
+    const el = document.querySelector(`[data-word-id="${id}"]`);
+    if (el) {
+      const r = el.getBoundingClientRect();
+      setHintRect({ left: r.left, top: r.top, bottom: r.bottom });
     }
   };
   const cancelLongPress = () => {
@@ -141,14 +152,26 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
     if (glowWord) {
       setHintWordId(glowWord.id);
       persistHintSeen();
+      measureHint(glowWord.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [helpOn, isDesktop, game.words, g.wordGlows, hintWordId]);
 
   useEffect(() => {
-    if (hintWordId === null) return;
+    if (hintWordId === null) {
+      setHintRect(null);
+      return;
+    }
     const t = setTimeout(() => setHintWordId(null), 10000);
-    return () => clearTimeout(t);
+    const reflow = () => measureHint(hintWordId);
+    window.addEventListener("scroll", reflow, true);
+    window.addEventListener("resize", reflow);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("scroll", reflow, true);
+      window.removeEventListener("resize", reflow);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hintWordId]);
 
   const [clock, setClock] = useState(() => Date.now());
@@ -286,7 +309,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
         </button>
       </TopBar>
 
-      <div className="game">
+      <div className={`game ${game.settings.mode === "practice" ? "flat" : ""}`}>
         <div className="board">
           <div className="left-col">
             <div className="section-label">
@@ -389,6 +412,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                               glow ? `glow-${glow}` : ""
                             }`}
                             key={w.id}
+                            data-word-id={w.id}
                             {...hoverProps}
                             {...touchProps}
                           >
@@ -416,9 +440,6 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                               <button className="challenge-link" onClick={() => g.startChallenge(w.id)}>
                                 challenge
                               </button>
-                            )}
-                            {hintWordId === w.id && (
-                              <div className="help-hint-tip">press and hold to see suggestions</div>
                             )}
                           </div>
                         );
@@ -504,6 +525,21 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
           </HelpTooltip>
         ) : null;
       })()}
+
+      {helpOn && !isDesktop && hintWordId !== null && hintRect && (
+        <div
+          className="help-hint-tip"
+          style={{
+            left: hintRect.left,
+            top:
+              hintRect.bottom + 24 > window.innerHeight
+                ? hintRect.top - 20
+                : hintRect.bottom + 4,
+          }}
+        >
+          press and hold to see suggestions
+        </div>
+      )}
 
       {helpOn && !isDesktop && pinnedHelp && (() => {
         const h = g.helpFor(pinnedHelp.wordId);

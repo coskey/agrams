@@ -343,8 +343,10 @@ export function useGame(
     const map = new Map<number, WordHelp>();
     if (!helpMode) return map;
     const pc = countsFromTiles(game.pool);
+    // Every letter still in play: the pool plus what's left in the bag.
+    const supply = countsFromTiles(game.pool.concat(game.bag));
     for (const w of game.words) {
-      map.set(w.id, analyzeHelp(w.text, pc, rules.dictionary, rules.morphology, { commonSet, cap: 12 }));
+      map.set(w.id, analyzeHelp(w.text, pc, supply, rules.dictionary, rules.morphology, { commonSet, cap: 12 }));
     }
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
