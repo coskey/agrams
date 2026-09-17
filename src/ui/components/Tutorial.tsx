@@ -35,17 +35,39 @@ const STEPS: Step[] = [
       <>
         Take an existing word, add one or more pool letters, and rearrange it into
         a new, different word:
-        <div style={{ display: "flex", gap: 6, alignItems: "center", margin: "10px 0" }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", margin: "10px 0", flexWrap: "wrap" }}>
           {"CARE".split("").map((c, i) => (
             <Tile key={i} letter={c} small />
           ))}
-          <span style={{ margin: "0 6px" }}>+ R →</span>
+          <span style={{ margin: "0 4px" }}>+</span>
+          <Tile letter="R" small />
+          <span style={{ margin: "0 4px" }}>&rarr;</span>
           {"RACER".split("").map((c, i) => (
             <Tile key={i} letter={c} small />
           ))}
         </div>
-        Just adding letters to make another form of the same word (CARE &rarr;
-        CARES) doesn&rsquo;t count.
+      </>
+    ),
+  },
+  {
+    title: "Keep the root different",
+    body: (
+      <>
+        You can&rsquo;t just add letters to make another form of the same word.
+        The new word has to come from a different root:
+        <div style={{ display: "flex", gap: 6, alignItems: "center", margin: "10px 0", flexWrap: "wrap" }}>
+          {"CARE".split("").map((c, i) => (
+            <Tile key={i} letter={c} small />
+          ))}
+          <span style={{ margin: "0 4px" }}>+</span>
+          <Tile letter="S" small />
+          <span style={{ margin: "0 4px" }}>&rarr;</span>
+          {"CARES".split("").map((c, i) => (
+            <Tile key={i} letter={c} small />
+          ))}
+          <span style={{ margin: "0 0 0 4px", fontWeight: 700 }}>&#10007;</span>
+        </div>
+        CARES is just CARE again, so that steal isn&rsquo;t allowed.
       </>
     ),
   },

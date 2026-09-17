@@ -826,6 +826,9 @@ button {
   max-width: 480px;
   position: relative;
 }
+.tutorial-modal h2 {
+  text-align: center;
+}
 .modal-close {
   position: absolute;
   top: 10px;
