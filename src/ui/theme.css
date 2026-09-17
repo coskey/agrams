@@ -566,6 +566,13 @@ button {
   outline: 2px solid var(--accent);
   border-color: var(--accent);
 }
+/* Keep the hint legible and let it fit even on narrow phones. */
+.inputbar input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
 .inputbar .send {
   border-radius: 10px;
   padding: 12px 16px;
@@ -579,6 +586,20 @@ button {
   border-radius: 10px;
   padding: 12px 15px;
   font-size: 15px;
+}
+/* On phones the word entry gets its own full-width row so the hint text is
+   never clipped by the Flip / Enter buttons, which drop to the row below. */
+@media (max-width: 560px) {
+  .inputbar .row {
+    flex-wrap: wrap;
+  }
+  .inputbar input {
+    flex: 1 1 100%;
+    order: -1;
+  }
+  .inputbar .send {
+    margin-left: auto;
+  }
 }
 .under-input {
   max-width: 1100px;

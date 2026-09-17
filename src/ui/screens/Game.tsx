@@ -225,7 +225,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                       {p.name}
                       {p.id === YOU_ID && <span className="you">(you)</span>}
                     </span>
-                    <span className="player-score">🏆 {playerScore(game, p.id)}</span>
+                    <span className="player-score">{playerScore(game, p.id)}</span>
                   </div>
                   {words.length === 0 ? (
                     <div className="no-words">No words yet</div>
@@ -277,7 +277,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
                 ref={inputRef}
                 value={g.pending}
                 readOnly={isDesktop}
-                placeholder={isDesktop ? "Type or tap a word…" : "Tap tiles or type…"}
+                placeholder={isDesktop ? "TYPE OR TAP" : "TAP OR TYPE"}
                 autoComplete="off"
                 autoCapitalize="characters"
                 spellCheck={false}
