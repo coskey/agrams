@@ -15,7 +15,8 @@ interface Props {
 export function WordFeedback({ last, onClose }: Props) {
   const [original, setOriginal] = useState(last?.original ?? "");
   const [created, setCreated] = useState(last?.created ?? "");
-  const [okay, setOkay] = useState(last ? last.outcome !== "rejected" : true);
+  // Default to "Not okay" — the form is usually opened to flag a bad steal.
+  const [okay, setOkay] = useState(false);
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
