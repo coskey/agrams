@@ -776,6 +776,10 @@ button {
   font-size: 18px;
   font-weight: 700;
 }
+.stepper button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 .stepper .val {
   font-weight: 800;
   min-width: 24px;

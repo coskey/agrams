@@ -35,14 +35,13 @@ export function SettingsModal({
       endgameSeconds: Math.min(180, Math.max(15, cur.endgameSeconds + delta)),
     }));
 
-  const setFlipInterval = (deltaMs: number) =>
-    setS((cur) => ({
-      ...cur,
-      autoFlipIntervalMs: Math.min(
-        15000,
-        Math.max(3000, cur.autoFlipIntervalMs + deltaMs),
-      ),
-    }));
+  // Steps by 1s down to 2s, then by 0.5s (2 -> 1.5 -> 1). Minimum 1s, max 15s.
+  const stepFlip = (dir: -1 | 1) =>
+    setS((cur) => {
+      const ms = cur.autoFlipIntervalMs;
+      const next = dir < 0 ? (ms > 2000 ? ms - 1000 : ms - 500) : ms < 2000 ? ms + 500 : ms + 1000;
+      return { ...cur, autoFlipIntervalMs: Math.min(15000, Math.max(1000, next)) };
+    });
 
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label={heading}>
@@ -75,11 +74,21 @@ export function SettingsModal({
         <div className="field">
           <label>Minimum word length</label>
           <div className="stepper">
-            <button type="button" onClick={() => setMinLen(-1)} aria-label="Decrease minimum length">
+            <button
+              type="button"
+              onClick={() => setMinLen(-1)}
+              disabled={s.minWordLength <= MIN_LEN_MIN}
+              aria-label="Decrease minimum length"
+            >
               −
             </button>
             <span className="val">{s.minWordLength}</span>
-            <button type="button" onClick={() => setMinLen(1)} aria-label="Increase minimum length">
+            <button
+              type="button"
+              onClick={() => setMinLen(1)}
+              disabled={s.minWordLength >= MIN_LEN_MAX}
+              aria-label="Increase minimum length"
+            >
               +
             </button>
           </div>
@@ -114,26 +123,45 @@ export function SettingsModal({
           <div className="field">
             <label>Seconds between tiles</label>
             <div className="stepper">
-              <button type="button" onClick={() => setFlipInterval(-1000)} aria-label="Decrease flip interval">
+              <button
+                type="button"
+                onClick={() => stepFlip(-1)}
+                disabled={s.autoFlipIntervalMs <= 1000}
+                aria-label="Decrease flip interval"
+              >
                 −
               </button>
-              <span className="val">{Math.round(s.autoFlipIntervalMs / 1000)}s</span>
-              <button type="button" onClick={() => setFlipInterval(1000)} aria-label="Increase flip interval">
+              <span className="val">{s.autoFlipIntervalMs / 1000}s</span>
+              <button
+                type="button"
+                onClick={() => stepFlip(1)}
+                disabled={s.autoFlipIntervalMs >= 15000}
+                aria-label="Increase flip interval"
+              >
                 +
               </button>
             </div>
-            <span className="hint">Between 3 and 15 seconds.</span>
           </div>
         )}
 
         <div className="field">
           <label>Endgame timer</label>
           <div className="stepper">
-            <button type="button" onClick={() => setEndgame(-15)} aria-label="Decrease endgame timer">
+            <button
+              type="button"
+              onClick={() => setEndgame(-15)}
+              disabled={s.endgameSeconds <= 15}
+              aria-label="Decrease endgame timer"
+            >
               −
             </button>
             <span className="val">{s.endgameSeconds}s</span>
-            <button type="button" onClick={() => setEndgame(15)} aria-label="Increase endgame timer">
+            <button
+              type="button"
+              onClick={() => setEndgame(15)}
+              disabled={s.endgameSeconds >= 180}
+              aria-label="Increase endgame timer"
+            >
               +
             </button>
           </div>
