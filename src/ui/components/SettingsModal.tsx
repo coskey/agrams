@@ -86,9 +86,6 @@ export function SettingsModal({
                 <span className="knob" />
               </button>
             </div>
-            <span className="hint">
-              Hover a word for anagrams and steals; stealable words glow.
-            </span>
           </div>
         )}
 

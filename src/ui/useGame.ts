@@ -164,6 +164,10 @@ export function useGame(
   gameRef.current = game;
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
+  // How many letters the human has staged. The bot holds while this is 2+ so it
+  // can't grab a word out from under a move the player is composing.
+  const pendingLenRef = useRef(0);
+  pendingLenRef.current = slots.length;
   const firstFourRef = useRef(firstFourArmed);
   firstFourRef.current = firstFourArmed;
 
@@ -375,7 +379,9 @@ export function useGame(
         });
         if (move) plan = { move, at: Date.now() + botReactionDelayMs(g, move, botRng.current) };
       }
-      if (plan && Date.now() >= plan.at) {
+      // Hold the bot's move while the player is composing a word (2+ letters
+      // staged). It resumes once the entry is cleared or submitted.
+      if (plan && Date.now() >= plan.at && pendingLenRef.current < 2) {
         const move = plan.move;
         const result =
           move.kind === "claim"
