@@ -245,6 +245,7 @@ function applySteal(
     ownerId: playerId,
     text: word,
     tiles: built.tiles,
+    stolenFrom: source,
   };
 
   let seq = state.nextSeq;
@@ -487,9 +488,29 @@ export function challengeWord(
   if (upheld) {
     return { ...state, events, nextSeq: seq };
   }
+
+  const others = state.words.filter((w) => w.id !== wordId);
+
+  // If the challenged word was a steal or a modification of another word,
+  // restore that previous word to its previous owner and return only the extra
+  // tiles (the ones added beyond it) to the pool.
+  if (word.stolenFrom) {
+    const prev = word.stolenFrom;
+    const prevTileIds = new Set(prev.tiles.map((t) => t.id));
+    const extra = word.tiles.filter((t) => !prevTileIds.has(t.id));
+    return {
+      ...state,
+      words: [...others, prev],
+      pool: [...state.pool, ...extra],
+      events,
+      nextSeq: seq,
+    };
+  }
+
+  // A fresh claim: all its tiles go back to the pool.
   return {
     ...state,
-    words: state.words.filter((w) => w.id !== wordId),
+    words: others,
     pool: [...state.pool, ...word.tiles],
     events,
     nextSeq: seq,

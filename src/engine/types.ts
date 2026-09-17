@@ -16,6 +16,9 @@ export interface ClaimedWord {
   text: string;
   /** The tiles that spell this word, in reading order. */
   tiles: Tile[];
+  /** If this word was made by stealing/modifying another, the word it replaced
+   *  (with its own provenance). Used to restore it on a successful challenge. */
+  stolenFrom?: ClaimedWord;
 }
 
 export interface Player {

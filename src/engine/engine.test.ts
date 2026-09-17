@@ -176,6 +176,27 @@ describe("game flow", () => {
     expect(s.pool.map((t) => t.letter).sort().join("")).toBe("ACER");
   });
 
+  it("returns a stolen word to its owner on a successful challenge", () => {
+    let s = freshGame();
+    for (let i = 0; i < 5; i++) s = flipNextTile(s); // pool: C A R E R
+    const claim = attemptWord(s, RULES, "you", "CARE");
+    if (!claim.ok) throw new Error("claim failed");
+    const steal = attemptWord(claim.state, RULES, "bot", "RACER");
+    if (!steal.ok) throw new Error("steal failed");
+    s = steal.state;
+    const racer = s.words.find((w) => w.text === "RACER");
+    expect(racer?.ownerId).toBe("bot");
+
+    s = challengeWord(s, racer!.id, false);
+    expect(s.words.some((w) => w.text === "RACER")).toBe(false);
+    const care = s.words.find((w) => w.text === "CARE");
+    expect(care?.ownerId).toBe("you"); // restored to the original owner
+    expect(playerScore(s, "you")).toBe(1);
+    expect(playerScore(s, "bot")).toBe(0);
+    // Only the added letter (R) returns to the pool; CARE keeps its tiles.
+    expect(s.pool.map((t) => t.letter).sort().join("")).toBe("R");
+  });
+
   it("ends when the endgame timer runs out", () => {
     let s = freshGame();
     for (let i = 0; i < 5; i++) s = flipNextTile(s);
