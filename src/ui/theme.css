@@ -690,6 +690,53 @@ button {
   background: var(--fg);
   color: var(--bg);
 }
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.switch {
+  flex: none;
+  width: 46px;
+  height: 27px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  position: relative;
+  padding: 0;
+  transition: background 0.15s ease;
+}
+.switch.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.switch .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease;
+}
+.switch.on .knob {
+  transform: translateX(19px);
+}
+
+/* Centered layout for the game setup / new game modal. */
+.setup-modal {
+  text-align: center;
+}
+.setup-modal .field {
+  align-items: center;
+}
+.setup-modal .toggle-row {
+  justify-content: center;
+}
+
 .stepper {
   display: inline-flex;
   align-items: center;

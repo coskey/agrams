@@ -53,27 +53,33 @@ export function SettingsModal({
 
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="modal">
+      <div className="modal setup-modal">
         <h2>{title}</h2>
 
         <div className="field">
-          <label>Opponent</label>
-          <div className="seg" role="group" aria-label="Opponent">
+          <div className="toggle-row">
+            <label htmlFor="solo-toggle">Solo practice</label>
             <button
+              id="solo-toggle"
               type="button"
-              className={s.mode === "vs-computer" ? "active" : ""}
-              onClick={() => setS((c) => ({ ...c, mode: "vs-computer" }))}
+              role="switch"
+              aria-checked={s.mode === "practice"}
+              className={`switch ${s.mode === "practice" ? "on" : ""}`}
+              onClick={() =>
+                setS((c) => ({
+                  ...c,
+                  mode: c.mode === "practice" ? "vs-computer" : "practice",
+                }))
+              }
             >
-              Computer
-            </button>
-            <button
-              type="button"
-              className={s.mode === "practice" ? "active" : ""}
-              onClick={() => setS((c) => ({ ...c, mode: "practice" }))}
-            >
-              Practice (solo)
+              <span className="knob" />
             </button>
           </div>
+          <span className="hint">
+            {s.mode === "practice"
+              ? "Play solo, with no computer opponent."
+              : "Play against the computer."}
+          </span>
         </div>
 
         {s.mode === "vs-computer" && (
@@ -106,7 +112,6 @@ export function SettingsModal({
               +
             </button>
           </div>
-          <span className="hint">Between {MIN_LEN_MIN} and {MIN_LEN_MAX} letters.</span>
         </div>
 
         <div className="field">
