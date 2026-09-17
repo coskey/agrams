@@ -15,10 +15,6 @@ export function Home({ onPlay, onPractice, onHowToPlay, themeMode, onToggleTheme
       <TopBar themeMode={themeMode} onToggleTheme={onToggleTheme} />
       <div className="home">
         <Wordmark className="hero" />
-        <p className="tag">
-          The classic word game Anagrams. Flip letters, build words, and steal
-          them right back.
-        </p>
         <div className="home-actions">
           <button className="btn" onClick={onPlay}>
             Play vs. Computer
