@@ -417,6 +417,16 @@ button {
   flex-direction: column;
   gap: 10px;
   overflow-y: auto;
+  --wtile: 34px;
+}
+/* Board word tiles scale with --wtile (set from the total word count) so a full
+   board still fits without much scrolling, especially on phones. */
+.players .tile.small {
+  width: var(--wtile);
+  height: var(--wtile);
+  font-size: calc(var(--wtile) * 0.5);
+  border-radius: calc(var(--wtile) * 0.17);
+  transition: width 0.18s ease, height 0.18s ease, font-size 0.18s ease;
 }
 .player-row {
   border: 1px solid var(--line);
@@ -457,7 +467,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 10px 16px;
+  gap: calc(var(--wtile, 34px) * 0.32) calc(var(--wtile, 34px) * 0.52);
 }
 /* Column layout: the word's width (and therefore its wrap position next to the
    previous word) depends only on the tiles. The challenge link sits below the
@@ -470,7 +480,7 @@ button {
 }
 .word-run {
   display: inline-flex;
-  gap: 4px;
+  gap: calc(var(--wtile, 34px) * 0.12);
   flex-wrap: wrap;
 }
 .tile-slot {

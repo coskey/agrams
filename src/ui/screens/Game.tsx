@@ -50,6 +50,11 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
 
   const isSelected = (id: number) => g.selectedTileIds.has(id);
   const ended = game.phase === "ended";
+  // As the board fills up, shrink the word tiles so more words stay on screen
+  // (they already wrap several to a row). Driven by the total word count.
+  const wordCount = game.words.length;
+  const boardTilePx =
+    wordCount <= 6 ? 34 : wordCount <= 12 ? 30 : wordCount <= 20 ? 26 : wordCount <= 30 ? 22 : 18;
   const isAuto = game.settings.flipMode === "auto";
   // Desktop (mouse/keyboard) can type without focusing the box; mobile uses the
   // on-screen input so its soft keyboard still works.
@@ -214,7 +219,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
             </div>
           </div>
 
-          <div className="players">
+          <div className="players" style={{ ["--wtile" as string]: `${boardTilePx}px` }}>
             {game.players.map((p) => {
               const words = game.words.filter((w) => w.ownerId === p.id);
               return (
