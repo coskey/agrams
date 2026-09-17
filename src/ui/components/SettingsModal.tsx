@@ -145,6 +145,22 @@ export function SettingsModal({
         )}
 
         <div className="field">
+          <div className="toggle-row">
+            <label htmlFor="start4-toggle">Start with 4 tiles</label>
+            <button
+              id="start4-toggle"
+              type="button"
+              role="switch"
+              aria-checked={s.startWithFourTiles}
+              className={`switch ${s.startWithFourTiles ? "on" : ""}`}
+              onClick={() => setS((c) => ({ ...c, startWithFourTiles: !c.startWithFourTiles }))}
+            >
+              <span className="knob" />
+            </button>
+          </div>
+        </div>
+
+        <div className="field">
           <label>Endgame timer</label>
           <div className="stepper">
             <button

@@ -35,6 +35,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   minWordLength: 4,
   flipMode: "manual",
   autoFlipIntervalMs: 6000,
+  startWithFourTiles: true,
   endgameSeconds: 60,
   stealBonusSeconds: 15,
 };

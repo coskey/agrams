@@ -330,6 +330,12 @@ button {
   font-size: 14px;
   padding: 14px 4px;
 }
+.pool-countdown {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---- Tiles ---- */
 

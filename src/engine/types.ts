@@ -39,6 +39,8 @@ export interface GameSettings {
   flipMode: FlipMode;
   /** For auto flip: milliseconds between reveals. */
   autoFlipIntervalMs: number;
+  /** Flip 4 tiles into the pool when the game starts. */
+  startWithFourTiles: boolean;
   /** Endgame countdown length and steal-bonus cap, in seconds. Default 60. */
   endgameSeconds: number;
   /** Seconds added to the endgame timer on each steal. Default 15. */

@@ -31,11 +31,12 @@ export interface LastWordEvent {
   outcome: "steal" | "claim" | "rejected";
 }
 
-/** One tapped tile while composing a word: the tile, its letter, and (if it came
- *  from an existing word) that word's id, so a steal source can be inferred. */
-interface TapEntry {
-  tileId: number;
+/** One letter while composing a word. A typed letter has no tile; a tapped letter
+ *  carries its tile id and (if from an existing word) that word's id, so a steal
+ *  source and the used tiles can be inferred. */
+interface Slot {
   letter: string;
+  tileId?: number;
   wordId?: number;
 }
 
@@ -51,6 +52,19 @@ function playersFor(mode: GameSettings["mode"]): Player[] {
   const you: Player = { id: YOU_ID, name: "You", isBot: false };
   if (mode === "practice") return [you];
   return [you, { id: BOT_ID, name: "Bot", isBot: true }];
+}
+
+const START_COUNTDOWN_MS = 3000;
+
+/** Create the opening game state. In manual mode with the option on, the first
+ *  four tiles are flipped immediately; in auto mode the opening tiles are dealt
+ *  after the start countdown, so the pool begins empty. */
+function makeStart(settings: GameSettings): GameState {
+  let g = createGame({ players: playersFor(settings.mode), settings });
+  if (settings.flipMode === "manual" && settings.startWithFourTiles) {
+    for (let i = 0; i < 4 && g.bag.length > 0; i++) g = flipNextTile(g);
+  }
+  return g;
 }
 
 /** How long the bot waits before committing a found move: bounds come from the
@@ -92,9 +106,11 @@ export interface UseGame {
   challengeId: number | null;
   paused: boolean;
   autoFlipRemainingMs: number | null;
+  startCountdownSec: number | null;
   lastWordEvent: LastWordEvent | null;
   setPending: (text: string) => void;
   tapTile: (tileId: number, letter: string, fromWordId?: number) => void;
+  appendLetter: (letter: string) => void;
   clearPending: () => void;
   backspace: () => void;
   submit: () => void;
@@ -113,12 +129,13 @@ export function useGame(
   vocab: VocabEntry[],
   initialSettings: GameSettings,
 ): UseGame {
-  const [game, setGame] = useState<GameState>(() =>
-    createGame({ players: playersFor(initialSettings.mode), settings: initialSettings }),
+  const [game, setGame] = useState<GameState>(() => makeStart(initialSettings));
+  const [startCountdownSec, setStartCountdownSec] = useState<number | null>(() =>
+    initialSettings.flipMode === "auto" ? START_COUNTDOWN_MS / 1000 : null,
   );
   const [feedback, setFeedbackState] = useState<Feedback | null>(null);
-  const [pending, setPendingState] = useState("");
-  const [taps, setTaps] = useState<TapEntry[]>([]);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const pending = slots.map((s) => s.letter).join("");
   const [challengeId, setChallengeId] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
   const [autoFlipRemainingMs, setAutoFlipRemainingMs] = useState<number | null>(null);
@@ -134,6 +151,9 @@ export function useGame(
   const nextFlipAt = useRef(0);
   const animatingUntil = useRef(0);
   const feedbackId = useRef(0);
+  const countdownDeadline = useRef(
+    initialSettings.flipMode === "auto" ? Date.now() + START_COUNTDOWN_MS : 0,
+  );
 
   const setFeedback = useCallback((f: Omit<Feedback, "id"> | null) => {
     if (!f) {
@@ -153,43 +173,44 @@ export function useGame(
     return () => clearTimeout(t);
   }, [feedback]);
 
-  // Selection derived from the ordered tap list (for dimming used tiles).
-  const selectedTileIds = new Set(taps.map((t) => t.tileId));
+  // Tiles currently used by the composed word (for dimming them).
+  const selectedTileIds = new Set(
+    slots.filter((s) => s.tileId !== undefined).map((s) => s.tileId as number),
+  );
 
   const setPending = useCallback((text: string) => {
-    // Manual typing invalidates the tap-to-tile mapping.
-    setPendingState(text);
-    setTaps([]);
+    // Replacing the whole text (mobile input) makes every letter a typed slot.
+    const clean = text.toUpperCase().replace(/[^A-Z]/g, "");
+    setSlots(clean.split("").map((letter) => ({ letter })));
   }, []);
 
-  const clearPending = useCallback(() => {
-    setPendingState("");
-    setTaps([]);
-  }, []);
+  const clearPending = useCallback(() => setSlots([]), []);
 
   const tapTile = useCallback(
     (tileId: number, letter: string, fromWordId?: number) => {
-      setTaps((prev) =>
-        prev.some((t) => t.tileId === tileId)
+      setSlots((prev) =>
+        prev.some((s) => s.tileId === tileId)
           ? prev
-          : [...prev, { tileId, letter, wordId: fromWordId }],
+          : [...prev, { letter: letter.toUpperCase(), tileId, wordId: fromWordId }],
       );
-      setPendingState((p) => p + letter.toUpperCase());
     },
     [],
   );
 
-  const backspace = useCallback(() => {
-    setPendingState((p) => p.slice(0, -1));
-    setTaps((prev) => prev.slice(0, -1));
+  const appendLetter = useCallback((letter: string) => {
+    const up = letter.toUpperCase();
+    if (!/^[A-Z]$/.test(up)) return;
+    setSlots((prev) => [...prev, { letter: up }]);
   }, []);
 
+  const backspace = useCallback(() => setSlots((prev) => prev.slice(0, -1)), []);
+
   const submit = useCallback(() => {
-    const text = pending.trim();
+    const text = slots.map((s) => s.letter).join("").trim();
     if (text.length === 0) return;
     const g = gameRef.current;
     const srcs = new Set(
-      taps.filter((t) => t.wordId !== undefined).map((t) => t.wordId as number),
+      slots.filter((s) => s.wordId !== undefined).map((s) => s.wordId as number),
     );
     const preferSourceWordId = srcs.size === 1 ? [...srcs][0] : undefined;
     const result = attemptWord(g, rules, YOU_ID, text, { preferSourceWordId });
@@ -220,7 +241,7 @@ export function useGame(
     }
     // Clear the entry box after every attempt.
     clearPending();
-  }, [pending, taps, rules, clearPending, setFeedback]);
+  }, [slots, rules, clearPending, setFeedback]);
 
   const flip = useCallback(() => {
     if (pausedRef.current) return;
@@ -250,7 +271,7 @@ export function useGame(
 
   const newGame = useCallback(
     (settings: GameSettings) => {
-      setGame(createGame({ players: playersFor(settings.mode), settings }));
+      setGame(makeStart(settings));
       setFeedback(null);
       clearPending();
       setChallengeId(null);
@@ -259,6 +280,9 @@ export function useGame(
       pendingBot.current = null;
       nextFlipAt.current = 0;
       animatingUntil.current = 0;
+      const auto = settings.flipMode === "auto";
+      countdownDeadline.current = auto ? Date.now() + START_COUNTDOWN_MS : 0;
+      setStartCountdownSec(auto ? START_COUNTDOWN_MS / 1000 : null);
       setAutoFlipRemainingMs(null);
       botRng.current = makeRng(Math.floor(Math.random() * 2 ** 31));
     },
@@ -311,11 +335,30 @@ export function useGame(
         setAutoFlipRemainingMs(null);
         return;
       }
+      const now = Date.now();
+      // Start-of-game countdown, then deal the opening tiles.
+      if (countdownDeadline.current > now) {
+        setStartCountdownSec(Math.ceil((countdownDeadline.current - now) / 1000));
+        setAutoFlipRemainingMs(null);
+        return;
+      }
+      if (countdownDeadline.current !== 0) {
+        countdownDeadline.current = 0;
+        setStartCountdownSec(null);
+        setGame((cur) => {
+          let ng = cur;
+          const n = cur.settings.startWithFourTiles ? 4 : 1;
+          for (let i = 0; i < n && ng.bag.length > 0; i++) ng = flipNextTile(ng);
+          return ng;
+        });
+        nextFlipAt.current = now + g.settings.autoFlipIntervalMs;
+        setAutoFlipRemainingMs(g.settings.autoFlipIntervalMs);
+        return;
+      }
       if (g.bag.length === 0) {
         setAutoFlipRemainingMs(null);
         return;
       }
-      const now = Date.now();
       if (now < animatingUntil.current) {
         // Hold the draw while tiles are animating into a word.
         nextFlipAt.current = animatingUntil.current + g.settings.autoFlipIntervalMs;
@@ -350,21 +393,22 @@ export function useGame(
   // tile they claimed/stole, or a word you were stealing that they took first),
   // the selection is stale — clear the entry and deselect the tiles.
   useEffect(() => {
-    if (taps.length === 0) return;
+    const tileSlots = slots.filter((s) => s.tileId !== undefined);
+    if (tileSlots.length === 0) return;
     const wordIds = new Set(
-      taps.filter((t) => t.wordId !== undefined).map((t) => t.wordId as number),
+      slots.filter((s) => s.wordId !== undefined).map((s) => s.wordId as number),
     );
     const available = new Set<number>();
     for (const t of game.pool) available.add(t.id);
     for (const w of game.words) {
       if (wordIds.has(w.id)) for (const t of w.tiles) available.add(t.id);
     }
-    const stale = taps.some((t) => !available.has(t.tileId));
+    const stale = tileSlots.some((s) => !available.has(s.tileId as number));
     if (stale) {
       clearPending();
       setFeedback({ text: "Those letters were taken — entry cleared.", kind: "error" });
     }
-  }, [game, taps, clearPending, setFeedback]);
+  }, [game, slots, clearPending, setFeedback]);
 
   return {
     game,
@@ -374,9 +418,11 @@ export function useGame(
     challengeId,
     paused,
     autoFlipRemainingMs,
+    startCountdownSec,
     lastWordEvent,
     setPending,
     tapTile,
+    appendLetter,
     clearPending,
     backspace,
     submit,

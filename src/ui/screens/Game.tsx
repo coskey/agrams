@@ -51,6 +51,12 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
   const isSelected = (id: number) => g.selectedTileIds.has(id);
   const ended = game.phase === "ended";
   const isAuto = game.settings.flipMode === "auto";
+  // Desktop (mouse/keyboard) can type without focusing the box; mobile uses the
+  // on-screen input so its soft keyboard still works.
+  const isDesktop = useMemo(
+    () => typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches,
+    [],
+  );
 
   const [clock, setClock] = useState(() => Date.now());
   const seenRef = useRef<Map<number, number>>(new Map());
@@ -68,27 +74,53 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
   const challengeable = (wordId: number) => !ended && ageOf(wordId) < CHALLENGE_WINDOW_MS;
   const animating = (wordId: number) => ageOf(wordId) < MOVE_ANIM_MS;
 
-  useEffect(() => {
-    if (window.matchMedia("(min-width: 900px)").matches) inputRef.current?.focus();
-  }, []);
-
   // Enter submits the pending word (typed or tapped) even when the input isn't
   // focused, e.g. after tapping tiles; Escape clears it. Ignored while a modal
   // is open or the game is over.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (ended || g.paused || showSettings || showFeedback || g.challengeId !== null) return;
-      if (e.key === "Enter" && g.pending.trim().length > 0) {
+      if (e.key === "Enter") {
+        if (g.pending.trim().length > 0) {
+          e.preventDefault();
+          g.submit();
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        if (g.pending.length > 0) {
+          e.preventDefault();
+          g.clearPending();
+        }
+        return;
+      }
+      // Desktop only: type letters without focusing the box, and backspace.
+      if (!isDesktop || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "Backspace") {
+        if (g.pending.length > 0) {
+          e.preventDefault();
+          g.backspace();
+        }
+      } else if (/^[a-zA-Z]$/.test(e.key)) {
         e.preventDefault();
-        g.submit();
-      } else if (e.key === "Escape" && g.pending.length > 0) {
-        e.preventDefault();
-        g.clearPending();
+        g.appendLetter(e.key);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ended, showSettings, showFeedback, g.paused, g.challengeId, g.pending, g.submit, g.clearPending]);
+  }, [
+    ended,
+    showSettings,
+    showFeedback,
+    isDesktop,
+    g.paused,
+    g.challengeId,
+    g.pending,
+    g.submit,
+    g.clearPending,
+    g.backspace,
+    g.appendLetter,
+  ]);
 
   const openFeedback = () => {
     g.pause();
@@ -132,7 +164,7 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
         <div className="board">
           <div className="left-col">
             <div className="section-label">
-              <span>Center Pool</span>
+              <span>Pool</span>
               <span>
                 {game.bag.length} in bag
                 {nextTileSec !== null && ` · next tile ${nextTileSec}s`}
@@ -141,13 +173,15 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
             <div className="pool-panel">
               {game.pool.length === 0 ? (
                 <div className="pool-empty">
-                  {game.bag.length === 0
-                    ? "The bag is empty."
-                    : isAuto
-                      ? nextTileSec !== null
-                        ? `First tile in ${nextTileSec}s…`
-                        : ""
-                      : "Flip a tile to begin."}
+                  {g.startCountdownSec !== null ? (
+                    <span className="pool-countdown">Get ready… {g.startCountdownSec}</span>
+                  ) : game.bag.length === 0 ? (
+                    "The bag is empty."
+                  ) : isAuto ? (
+                    nextTileSec !== null ? `First tile in ${nextTileSec}s…` : ""
+                  ) : (
+                    "Flip a tile to begin."
+                  )}
                 </div>
               ) : (
                 <div className="pool-tiles">
@@ -221,7 +255,8 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
               <input
                 ref={inputRef}
                 value={g.pending}
-                placeholder="Type or tap a word…"
+                readOnly={isDesktop}
+                placeholder={isDesktop ? "Type or tap a word…" : "Tap tiles or type…"}
                 autoComplete="off"
                 autoCapitalize="characters"
                 spellCheck={false}
