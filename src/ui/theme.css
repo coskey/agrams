@@ -424,7 +424,8 @@ button {
 .players .tile.small {
   width: var(--wtile);
   height: var(--wtile);
-  font-size: calc(var(--wtile) * 0.5);
+  font-size: calc(var(--wtile) * 0.56);
+  border-width: max(1px, calc(var(--wtile) * 0.06));
   border-radius: calc(var(--wtile) * 0.17);
   transition: width 0.18s ease, height 0.18s ease, font-size 0.18s ease;
 }

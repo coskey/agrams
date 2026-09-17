@@ -50,11 +50,6 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
 
   const isSelected = (id: number) => g.selectedTileIds.has(id);
   const ended = game.phase === "ended";
-  // As the board fills up, shrink the word tiles so more words stay on screen
-  // (they already wrap several to a row). Driven by the total word count.
-  const wordCount = game.words.length;
-  const boardTilePx =
-    wordCount <= 6 ? 34 : wordCount <= 12 ? 30 : wordCount <= 20 ? 26 : wordCount <= 30 ? 22 : 18;
   const isAuto = game.settings.flipMode === "auto";
   // Desktop (mouse/keyboard) can type without focusing the box; mobile uses the
   // on-screen input so its soft keyboard still works.
@@ -62,6 +57,30 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
     () => typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches,
     [],
   );
+  // As the board fills up, shrink the word tiles so more words stay on screen
+  // (they already wrap several to a row). Phones shrink sooner and further.
+  const wordCount = game.words.length;
+  const boardTilePx = isDesktop
+    ? wordCount <= 6
+      ? 34
+      : wordCount <= 14
+        ? 30
+        : wordCount <= 24
+          ? 26
+          : wordCount <= 36
+            ? 22
+            : 18
+    : wordCount <= 3
+      ? 28
+      : wordCount <= 6
+        ? 24
+        : wordCount <= 10
+          ? 20
+          : wordCount <= 16
+            ? 17
+            : wordCount <= 24
+              ? 14
+              : 12;
 
   const [clock, setClock] = useState(() => Date.now());
   const seenRef = useRef<Map<number, number>>(new Map());
