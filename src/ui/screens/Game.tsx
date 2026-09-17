@@ -274,7 +274,6 @@ export function Game({ rules, vocab, settings, onExit, themeMode, onToggleTheme 
       {showSettings && (
         <SettingsModal
           initial={game.settings}
-          title="New game"
           confirmLabel="Start new game"
           onConfirm={(s) => {
             g.newGame(s);

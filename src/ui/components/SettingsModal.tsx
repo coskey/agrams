@@ -3,7 +3,6 @@ import type { GameSettings } from "../../engine";
 
 interface Props {
   initial: GameSettings;
-  title?: string;
   confirmLabel?: string;
   onConfirm: (settings: GameSettings) => void;
   onCancel: () => void;
@@ -14,12 +13,12 @@ const MIN_LEN_MAX = 6;
 
 export function SettingsModal({
   initial,
-  title = "Game settings",
   confirmLabel = "Start game",
   onConfirm,
   onCancel,
 }: Props) {
   const [s, setS] = useState<GameSettings>(initial);
+  const heading = s.mode === "practice" ? "New solo game" : "New game vs computer";
 
   const setMinLen = (delta: number) =>
     setS((cur) => ({
@@ -46,35 +45,9 @@ export function SettingsModal({
     }));
 
   return (
-    <div className="overlay" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="overlay" role="dialog" aria-modal="true" aria-label={heading}>
       <div className="modal setup-modal">
-        <h2>{title}</h2>
-
-        <div className="field">
-          <div className="toggle-row">
-            <label htmlFor="solo-toggle">Solo practice</label>
-            <button
-              id="solo-toggle"
-              type="button"
-              role="switch"
-              aria-checked={s.mode === "practice"}
-              className={`switch ${s.mode === "practice" ? "on" : ""}`}
-              onClick={() =>
-                setS((c) => ({
-                  ...c,
-                  mode: c.mode === "practice" ? "vs-computer" : "practice",
-                }))
-              }
-            >
-              <span className="knob" />
-            </button>
-          </div>
-          <span className="hint">
-            {s.mode === "practice"
-              ? "Play solo, with no computer opponent."
-              : "Play against the computer."}
-          </span>
-        </div>
+        <h2>{heading}</h2>
 
         {s.mode === "vs-computer" && (
           <div className="field">

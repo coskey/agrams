@@ -86,7 +86,6 @@ export function App() {
       {startMode && (
         <SettingsModal
           initial={{ ...settings, mode: startMode }}
-          title={startMode === "practice" ? "Practice game" : "New game"}
           confirmLabel="Start game"
           onConfirm={(s) => {
             setSettings(s);
