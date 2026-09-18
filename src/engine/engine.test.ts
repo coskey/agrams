@@ -28,6 +28,8 @@ const DICT = new Dictionary([
   "FLAIR", "FLAIRS", "PIZE", "PIZES", "JEE", "JEES",
   // For the general (non-curated) rule.
   "ACT", "ACTIVE", "TEACH", "TEACHER",
+  // Plural should block; different-root +R should not.
+  "IMAGE", "IMAGES", "BUTTE", "BUTTER",
 ]);
 
 const INFLECTIONS = [
@@ -95,6 +97,8 @@ describe("root detection (Morphology.sameRoot)", () => {
     // The general rule catches these without a curated entry.
     ["ACT", "ACTIVE", true], // derivation (-ive)
     ["TEACH", "TEACHER", true], // agent (-er)
+    ["IMAGE", "IMAGES", true], // plural must block
+    ["BUTTE", "BUTTER", false], // different roots (allow-list override)
   ];
   for (const [a, b, expected] of cases) {
     it(`${a} vs ${b} -> sameRoot ${expected}`, () => {
