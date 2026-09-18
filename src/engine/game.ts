@@ -85,6 +85,7 @@ export function createGame(options: CreateGameOptions): GameState {
     bag,
     pool: [],
     words: [],
+    bannedWords: [],
     endgame: { active: false, remainingMs: null },
     events: [startEvent],
     nextTileId,
@@ -303,6 +304,8 @@ export function applyMove(
 export interface AnalyzeResult {
   normalized: string;
   tooShort: boolean;
+  /** The word was ruled invalid by an earlier successful challenge. */
+  banned: boolean;
   dictionaryValid: boolean;
   /** True if the word can be claimed from the pool alone. */
   canClaim: boolean;
@@ -323,6 +326,7 @@ export function analyzeWord(
 ): AnalyzeResult {
   const normalized = normalizeWord(text);
   const tooShort = normalized.length < state.settings.minWordLength;
+  const banned = normalized.length > 0 && state.bannedWords.includes(normalized);
   const dictionaryValid =
     normalized.length > 0 && rules.dictionary.isValid(normalized);
 
@@ -350,6 +354,7 @@ export function analyzeWord(
   return {
     normalized,
     tooShort,
+    banned,
     dictionaryValid,
     canClaim,
     steals,
@@ -390,6 +395,13 @@ export function attemptWord(
       ok: false,
       reason: "TOO_SHORT",
       message: `"${normalized}" is too short — words must be at least ${state.settings.minWordLength} letters.`,
+    };
+  }
+  if (analysis.banned) {
+    return {
+      ok: false,
+      reason: "CHALLENGED_OUT",
+      message: `"${normalized}" was challenged out earlier and can't be used again this game.`,
     };
   }
   if (!analysis.dictionaryValid) {
@@ -465,7 +477,7 @@ export function moveIsLegal(
 ): boolean {
   if (state.phase !== "playing") return false;
   const analysis = analyzeWord(state, rules, move.text);
-  if (analysis.tooShort || !analysis.dictionaryValid) return false;
+  if (analysis.tooShort || analysis.banned || !analysis.dictionaryValid) return false;
   if (move.kind === "claim") return analysis.canClaim;
   return analysis.steals.includes(move.sourceWordId);
 }
@@ -490,6 +502,10 @@ export function challengeWord(
   }
 
   const others = state.words.filter((w) => w.id !== wordId);
+  // Bar the ruled-out word for the rest of the game so it can't be remade.
+  const bannedWords = state.bannedWords.includes(word.text)
+    ? state.bannedWords
+    : [...state.bannedWords, word.text];
 
   // If the challenged word was a steal or a modification of another word,
   // restore that previous word to its previous owner and return only the extra
@@ -502,6 +518,7 @@ export function challengeWord(
       ...state,
       words: [...others, prev],
       pool: [...state.pool, ...extra],
+      bannedWords,
       events,
       nextSeq: seq,
     };
@@ -512,6 +529,7 @@ export function challengeWord(
     ...state,
     words: others,
     pool: [...state.pool, ...word.tiles],
+    bannedWords,
     events,
     nextSeq: seq,
   };

@@ -3,11 +3,15 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY, FEEDBACK_TABLE } from "./supabaseConfig";
 
+export type FeedbackKind = "feedback" | "challenge";
+
 export interface FeedbackRecord {
   original: string;
   created: string;
   okay: boolean;
   note?: string;
+  /** "feedback" (the form) or "challenge" (an in-game challenge). */
+  kind?: FeedbackKind;
 }
 
 interface Payload {
@@ -16,6 +20,7 @@ interface Payload {
   is_okay: boolean;
   note: string | null;
   source: string;
+  kind: FeedbackKind;
 }
 
 function toPayload(rec: FeedbackRecord): Payload {
@@ -25,6 +30,7 @@ function toPayload(rec: FeedbackRecord): Payload {
     is_okay: rec.okay,
     note: rec.note?.trim() || null,
     source: "web",
+    kind: rec.kind ?? "feedback",
   };
 }
 

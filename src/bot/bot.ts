@@ -75,6 +75,7 @@ export function findBotCandidates(
 ): Candidate[] {
   const minLen = state.settings.minWordLength;
   const pc = poolCounts(state);
+  const banned = new Set(state.bannedWords);
   const candidates: Candidate[] = [];
 
   const wordCountsCache = new Map<number, number[]>();
@@ -90,6 +91,7 @@ export function findBotCandidates(
   for (const entry of vocab) {
     const len = entry.word.length;
     if (len < minLen || len > maxWordLength) continue;
+    if (banned.has(entry.word)) continue; // challenged out earlier
 
     // Claim straight from the pool.
     if (countsContain(pc, entry.counts)) {

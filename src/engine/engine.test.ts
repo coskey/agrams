@@ -213,6 +213,27 @@ describe("game flow", () => {
     expect(s.pool.map((t) => t.letter).sort().join("")).toBe("R");
   });
 
+  it("bars a challenged-out word for the rest of the game", () => {
+    let s = freshGame();
+    for (let i = 0; i < 5; i++) s = flipNextTile(s); // pool: C A R E R
+    const claim = attemptWord(s, RULES, "you", "CARE");
+    if (!claim.ok) throw new Error("claim failed");
+    const steal = attemptWord(claim.state, RULES, "bot", "RACER");
+    if (!steal.ok) throw new Error("steal failed");
+    const racer = steal.state.words.find((w) => w.text === "RACER")!;
+    s = challengeWord(steal.state, racer.id, false);
+    expect(s.bannedWords).toContain("RACER");
+
+    // RACER can't be remade, even though the tiles are back.
+    const again = attemptWord(s, RULES, "bot", "RACER");
+    expect(again.ok).toBe(false);
+    if (!again.ok) expect(again.reason).toBe("CHALLENGED_OUT");
+    const care = s.words.find((w) => w.text === "CARE")!;
+    expect(
+      moveIsLegal(s, RULES, { kind: "steal", playerId: "bot", text: "RACER", sourceWordId: care.id }),
+    ).toBe(false);
+  });
+
   it("ends when the endgame timer runs out", () => {
     let s = freshGame();
     for (let i = 0; i < 5; i++) s = flipNextTile(s);

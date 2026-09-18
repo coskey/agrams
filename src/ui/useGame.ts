@@ -21,6 +21,7 @@ import {
 import type { VocabEntry } from "../engine/dictionary";
 import { chooseBotMove, botLevel } from "../bot/bot";
 import { makeRng } from "../engine/bag";
+import { recordFeedback } from "../data/feedback";
 
 export interface Feedback {
   id: number;
@@ -292,7 +293,20 @@ export function useGame(
   const cancelChallenge = useCallback(() => setChallengeId(null), []);
   const resolveChallenge = useCallback((upheld: boolean) => {
     setChallengeId((id) => {
-      if (id !== null) setGame((gm) => challengeWord(gm, id, upheld));
+      if (id !== null) {
+        // Log every challenge alongside word feedback (kind: "challenge").
+        const word = gameRef.current.words.find((w) => w.id === id);
+        if (word) {
+          void recordFeedback({
+            original: word.stolenFrom?.text ?? "",
+            created: word.text,
+            okay: upheld, // upheld = judged a valid word/steal
+            note: upheld ? "challenge upheld" : "challenge removed",
+            kind: "challenge",
+          });
+        }
+        setGame((gm) => challengeWord(gm, id, upheld));
+      }
       return null;
     });
   }, []);

@@ -107,6 +107,9 @@ export interface GameState {
   pool: Tile[];
   /** All claimed words across all players. */
   words: ClaimedWord[];
+  /** Words ruled invalid by a successful challenge; barred for the rest of the
+   *  game so the same disallowed word can't simply be remade. */
+  bannedWords: string[];
   endgame: EndgameTimer;
   /** Ordered log of everything that happened, for replay and online sync. */
   events: GameEvent[];
@@ -125,6 +128,7 @@ export type RejectReason =
   | "GAME_OVER"
   | "TOO_SHORT"
   | "NOT_A_WORD"
+  | "CHALLENGED_OUT"
   | "NOT_FORMABLE"
   | "NOT_A_STEAL"
   | "SOURCE_NOT_FOUND";

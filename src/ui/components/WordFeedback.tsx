@@ -23,7 +23,7 @@ export function WordFeedback({ last, onClose }: Props) {
 
   const submit = async () => {
     setBusy(true);
-    const res = await recordFeedback({ original, created, okay, note });
+    const res = await recordFeedback({ original, created, okay, note, kind: "feedback" });
     setBusy(false);
     setStatus(res.message);
     if (res.ok) setTimeout(onClose, 900);
