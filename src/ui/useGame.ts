@@ -391,6 +391,7 @@ export function useGame(
           maxWordLength: level.maxWordLength,
           missProbability: level.missProbability,
           topK: level.topK,
+          deepStealAdd: level.deepStealAdd,
           rng: botRng.current,
         });
         if (move) plan = { move, at: Date.now() + botReactionDelayMs(g, move, botRng.current) };

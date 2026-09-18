@@ -22,10 +22,13 @@ export interface BotConfig {
   missProbability: number;
   /** Choose randomly among the top-K moves by value rather than always the best.*/
   topK: number;
+  /** When set, also search the FULL dictionary for steals (adding up to this
+   *  many pool letters) via the anagram index — the "unreal" level's edge. */
+  deepStealAdd?: number;
   rng: () => number;
 }
 
-/** A difficulty level (1 easiest .. 5 hardest). Reaction bounds are consumed by
+/** A difficulty level (1 easiest .. 6 hardest). Reaction bounds are consumed by
  *  the UI timing layer; the rest tune move quality and frequency. */
 export interface BotLevel {
   maxWordLength: number;
@@ -33,6 +36,8 @@ export interface BotLevel {
   topK: number;
   reactionLoMs: number;
   reactionHiMs: number;
+  /** Extra pool letters the full-dictionary steal search may add (0 = off). */
+  deepStealAdd?: number;
 }
 
 export const BOT_LEVELS: Record<number, BotLevel> = {
@@ -41,12 +46,16 @@ export const BOT_LEVELS: Record<number, BotLevel> = {
   3: { maxWordLength: 8, missProbability: 0.4, topK: 3, reactionLoMs: 5000, reactionHiMs: 8000 },
   4: { maxWordLength: 10, missProbability: 0.2, topK: 2, reactionLoMs: 3500, reactionHiMs: 6000 },
   5: { maxWordLength: 99, missProbability: 0.0, topK: 1, reactionLoMs: 2000, reactionHiMs: 4000 },
+  // Unreal: L5's decision quality, faster hands, and a full-dictionary steal
+  // search (adds up to 4 pool letters to any board word).
+  6: { maxWordLength: 99, missProbability: 0.0, topK: 1, reactionLoMs: 1000, reactionHiMs: 2500, deepStealAdd: 3 },
 };
 
 export const DEFAULT_BOT_LEVEL = 3;
+export const MAX_BOT_LEVEL = 6;
 
 export function botLevel(level: number): BotLevel {
-  const clamped = Math.min(5, Math.max(1, Math.round(level)));
+  const clamped = Math.min(MAX_BOT_LEVEL, Math.max(1, Math.round(level)));
   return BOT_LEVELS[clamped] ?? BOT_LEVELS[DEFAULT_BOT_LEVEL];
 }
 
@@ -62,6 +71,76 @@ function poolCounts(state: GameState): number[] {
     if (idx >= 0 && idx < 26) counts[idx]++;
   }
   return counts;
+}
+
+function keyFromCounts(counts: number[]): string {
+  let s = "";
+  for (let i = 0; i < 26; i++) {
+    if (counts[i] > 0) s += String.fromCharCode(65 + i).repeat(counts[i]);
+  }
+  return s;
+}
+
+/** Enumerate non-empty letter multisets drawn from the pool, up to `maxK` tiles,
+ *  yielding a shared counts array (read it before requesting the next). */
+function* poolAdditions(pc: number[], maxK: number): Generator<number[]> {
+  const extra = new Array<number>(26).fill(0);
+  function* rec(start: number, remaining: number): Generator<number[]> {
+    for (let i = start; i < 26; i++) {
+      if (pc[i] === 0) continue;
+      const maxTake = Math.min(pc[i], remaining);
+      for (let take = 1; take <= maxTake; take++) {
+        extra[i] = take;
+        yield extra;
+        if (remaining - take > 0) yield* rec(i + 1, remaining - take);
+      }
+      extra[i] = 0;
+    }
+  }
+  yield* rec(0, maxK);
+}
+
+/** Steals over the WHOLE dictionary (not just the common vocab): for each board
+ *  word, add up to `maxAdded` pool letters and look the result up in the anagram
+ *  index. Bounded by pool sub-multisets, so it stays fast. */
+export function findDeepStealCandidates(
+  state: GameState,
+  rules: Rules,
+  botId: string,
+  maxAdded: number,
+): Candidate[] {
+  const minLen = state.settings.minWordLength;
+  const pc = poolCounts(state);
+  const banned = new Set(state.bannedWords);
+  const index = rules.dictionary.getAnagramIndex();
+  const out: Candidate[] = [];
+  const combined = new Array<number>(26).fill(0);
+
+  // The enumeration grows with pool size, so cap the added letters on big pools
+  // to keep each search fast.
+  const poolSize = state.pool.length;
+  const k = poolSize > 24 ? Math.min(maxAdded, 2) : poolSize > 18 ? Math.min(maxAdded, 3) : maxAdded;
+
+  for (const w of state.words) {
+    const wc = lettersToCounts(w.text);
+    const sourceScore = wordScore(w.text.length, minLen);
+    const denied = w.ownerId === botId ? -sourceScore : sourceScore;
+    for (const extra of poolAdditions(pc, k)) {
+      for (let i = 0; i < 26; i++) combined[i] = wc[i] + extra[i];
+      const hits = index.get(keyFromCounts(combined));
+      if (!hits) continue;
+      for (const t of hits) {
+        if (t.length <= w.text.length) continue;
+        if (banned.has(t)) continue;
+        if (rules.morphology.sameRoot(w.text, t)) continue;
+        out.push({
+          move: { kind: "steal", playerId: botId, text: t, sourceWordId: w.id },
+          value: wordScore(t.length, minLen) + denied,
+        });
+      }
+    }
+  }
+  return out;
 }
 
 /** All legal claims and steals the bot's vocabulary can make right now. Exposed
@@ -135,6 +214,24 @@ export function chooseBotMove(
   if (state.phase !== "playing") return null;
 
   const candidates = findBotCandidates(state, rules, vocab, botId, config.maxWordLength);
+
+  // The "unreal" level also mines the whole dictionary for steals.
+  if (config.deepStealAdd && config.deepStealAdd > 0) {
+    const seen = new Set(
+      candidates.map((c) =>
+        c.move.kind === "steal" ? `${c.move.text}|${c.move.sourceWordId}` : "",
+      ),
+    );
+    for (const c of findDeepStealCandidates(state, rules, botId, config.deepStealAdd)) {
+      const move = c.move;
+      if (move.kind !== "steal") continue;
+      const key = `${move.text}|${move.sourceWordId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      candidates.push(c);
+    }
+  }
+
   if (candidates.length === 0) return null;
 
   // Sometimes hold back so the human can grab a word first.

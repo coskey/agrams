@@ -52,7 +52,7 @@ export function SettingsModal({
           <div className="field">
             <label>Difficulty</label>
             <div className="bubbles" role="group" aria-label="Difficulty level">
-              {[1, 2, 3, 4, 5].map((n) => (
+              {[1, 2, 3, 4, 5, 6].map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -66,7 +66,7 @@ export function SettingsModal({
               ))}
             </div>
             <span className="hint">
-              {["", "Easy", "Decent", "Challenging", "Hard", "Insane"][s.difficultyLevel]}
+              {["", "Easy", "Decent", "Challenging", "Hard", "Strenuous", "Unreal"][s.difficultyLevel]}
             </span>
           </div>
         )}

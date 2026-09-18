@@ -3,7 +3,7 @@ import { createGame, flipNextTile, attemptWord, type Rules } from "../engine/gam
 import { Dictionary, buildVocabulary } from "../engine/dictionary";
 import { emptyMorphology } from "../engine/morphology";
 import { makeRng } from "../engine/bag";
-import { findBotCandidates, chooseBotMove, botLevel } from "./bot";
+import { findBotCandidates, findDeepStealCandidates, chooseBotMove, botLevel } from "./bot";
 import type { Player, Tile } from "../engine/types";
 
 const DICT = new Dictionary(["CARE", "RACER", "RACE", "ACRE", "CATER", "TRACE"]);
@@ -70,9 +70,36 @@ describe("bot", () => {
     expect(move).toBeNull();
   });
 
-  it("has five difficulty levels, hardest strongest", () => {
+  it("has six difficulty levels, hardest strongest", () => {
     expect(botLevel(1).missProbability).toBeGreaterThan(botLevel(5).missProbability);
     expect(botLevel(5).maxWordLength).toBeGreaterThan(botLevel(1).maxWordLength);
-    expect(botLevel(3)).toEqual(botLevel(3));
+    // Level 6 ("unreal"): faster reactions than L5 and the deep steal search on.
+    expect(botLevel(6).reactionHiMs).toBeLessThan(botLevel(5).reactionHiMs);
+    expect(botLevel(6).deepStealAdd).toBeGreaterThan(0);
+    expect(botLevel(7)).toEqual(botLevel(6)); // clamps to max
+  });
+
+  it("deep steal search finds a full-dictionary steal the common vocab misses", () => {
+    // Common vocab lacks RACER; the deep search still finds CARE -> RACER.
+    const vocabNoRacer = buildVocabulary(["CARE", "RACE", "CATER", "TRACE"], DICT);
+    let s = poolGame("CARER");
+    const claim = attemptWord(s, RULES, "you", "CARE");
+    if (!claim.ok) throw new Error("setup claim failed");
+    s = claim.state;
+
+    const shallow = findBotCandidates(s, RULES, vocabNoRacer, "bot", 99);
+    expect(shallow.some((c) => c.move.kind === "steal" && c.move.text === "RACER")).toBe(false);
+
+    const deep = findDeepStealCandidates(s, RULES, "bot", 3);
+    expect(deep.some((c) => c.move.kind === "steal" && c.move.text === "RACER")).toBe(true);
+
+    const move = chooseBotMove(s, RULES, vocabNoRacer, "bot", {
+      maxWordLength: 99,
+      missProbability: 0,
+      topK: 1,
+      deepStealAdd: 3,
+      rng: makeRng(1),
+    });
+    expect(move).toEqual({ kind: "steal", playerId: "bot", text: "RACER", sourceWordId: s.words[0].id });
   });
 });
